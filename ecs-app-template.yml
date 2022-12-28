@@ -1,0 +1,229 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: To deploy a containerized app to an ecs cluster.
+Parameters:
+  ECRRepo:
+    Type: String
+  KeyPair:
+    Type: String
+    Default: fgt-kp
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ecs/optimized-ami/amazon-linux-2/amzn2-ami-ecs-hvm-2.0.20221213-x86_64-ebs/image_id'
+  AppVPC:
+    Type: String
+  AppSubnet:
+    Type: String
+Resources:
+  ECSInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "ecsInstanceRole-${AWS::StackName}"
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - 'sts:AssumeRole'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+      - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+  ECSInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+      - !Ref ECSInstanceRole
+  ECSTaskExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "ecsTaskExecRole-${AWS::StackName}"
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ecs-tasks.amazonaws.com
+          Action:
+          - 'sts:AssumeRole'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy        
+  SvcSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+     GroupDescription: Security group for container instances.
+     VpcId: !Ref AppVPC
+     SecurityGroupIngress:
+       - IpProtocol: tcp
+         FromPort: 1313
+         ToPort: 1313
+         CidrIp: 0.0.0.0/0
+     SecurityGroupEgress:
+       - IpProtocol: tcp
+         FromPort: 0
+         ToPort: 65535
+         CidrIp: 0.0.0.0/0
+  EcsInstanceLc:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: t2.micro
+      AssociatePublicIpAddress: true
+      IamInstanceProfile: !Ref ECSInstanceProfile
+      KeyName: !Ref KeyPair 
+      SecurityGroups: 
+      - !Ref SvcSecGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config;echo ECS_BACKEND_HOST= >> /etc/ecs/ecs.config
+
+  EcsInstanceAsg:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+      - !Ref AppSubnet
+      LaunchConfigurationName: !Ref EcsInstanceLc
+      MinSize: 0
+      MaxSize: 2
+      DesiredCapacity: 1
+      Tags:
+        -
+          Key: Name
+          Value: !Sub "ECS Instance - ${AWS::StackName}"
+          PropagateAtLaunch: true
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: WorkshopCluster
+  ECSTaskDef:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      RequiresCompatibilities: 
+      - EC2
+      NetworkMode: bridge
+      Memory: 256
+      Cpu: 256
+      Family: WorkshopCluster
+      ExecutionRoleArn: !Ref ECSTaskExecRole
+      TaskRoleArn: !Ref ECSTaskExecRole 
+      ContainerDefinitions:
+      - 
+        Name: testImage
+        Image: !Ref ECRRepo
+        PortMappings:
+        - 
+          HostPort: 1313
+          ContainerPort: 1313
+          Protocol: tcp
+  ECSClusterService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: WorkshopSvc 
+      Cluster: !GetAtt ECSCluster.Arn   
+      DeploymentConfiguration:
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      LaunchType: EC2
+      SchedulingStrategy: REPLICA
+      TaskDefinition: !Ref ECSTaskDef
+  EBRuleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service:
+              - "events.amazonaws.com"
+          Action:
+            - "sts:AssumeRole"
+      Policies:
+        - PolicyName: UpdateECSService
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - "lambda:InvokeFunction"
+                Resource: !GetAtt UpdateSvcOnPush.Arn
+  UpdateSvcEBRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Update service when new image pushed to ECR
+      Name: TriggerLambdaUpdateECS
+      State: ENABLED
+      EventPattern:
+        source:
+          - aws.ecr
+        detail:
+          action-type: 
+            - PUSH
+          result: 
+            - SUCCESS    
+      Targets:
+        - Arn: !GetAtt UpdateSvcOnPush.Arn
+          Id: LambdaUpdateSvc
+
+  LambdaExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+      - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+      - PolicyName: ECSUpdateServicePolicy
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action: "ecs:UpdateService"
+              Resource: !Ref ECSClusterService
+  UpdateSvcOnPush:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.9
+      Role: !GetAtt LambdaExecRole.Arn
+      Handler: index.restart_service
+      Code:
+        ZipFile: !Sub | 
+          import boto3
+          import logging
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+          client = boto3.client('ecs')
+
+          def restart_service(event, context):
+              logger.info("Event received: {}".format(event))
+              if event["detail"]["action-type"] == 'PUSH':
+                  try:
+                      client.update_service(cluster="${ECSCluster}", service="${ECSClusterService.Name}", forceNewDeployment=True)
+                  except Exception as err:
+                       logger.error("Error updating service: {}".format(err))
+              else:
+                  logger.info("Event type not 'PUSH', so doing nothing.")
+  EBRuleLambdaPerms:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt UpdateSvcOnPush.Arn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !GetAtt UpdateSvcEBRule.Arn

@@ -1,0 +1,18 @@
+[
+        {
+                "ParameterKey": "ECRRepo",
+		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "KeyPair",
+		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "AppVPC",
+		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "AppSubnet",
+		"ParameterValue": ""
+	}
+]

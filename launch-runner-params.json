@@ -1,0 +1,30 @@
+[
+        {
+                "ParameterKey": "VPCtoUse",
+		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "GHAToken",
+		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "KeyPair",
+		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "HashCheck",
+		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "AppName",
+		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "RepoName",
+		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "RunnerVersion",
+		"ParameterValue": ""
+	}
+]
