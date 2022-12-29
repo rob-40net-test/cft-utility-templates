@@ -5,7 +5,6 @@ Parameters:
     Type: String
   KeyPair:
     Type: String
-    Default: fgt-kp
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ecs/optimized-ami/amazon-linux-2/amzn2-ami-ecs-hvm-2.0.20221213-x86_64-ebs/image_id'
@@ -170,7 +169,9 @@ Resources:
           action-type: 
             - PUSH
           result: 
-            - SUCCESS    
+            - SUCCESS   
+          repository-name:
+            - !Ref ECRRepo 
       Targets:
         - Arn: !GetAtt UpdateSvcOnPush.Arn
           Id: LambdaUpdateSvc
