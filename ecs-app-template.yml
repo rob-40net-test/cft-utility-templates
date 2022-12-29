@@ -13,6 +13,8 @@ Parameters:
     Type: String
   AppSubnet:
     Type: String
+  AllowedCidr:
+    Type: String
 Resources:
   ECSInstanceRole:
     Type: AWS::IAM::Role
@@ -63,7 +65,7 @@ Resources:
        - IpProtocol: tcp
          FromPort: 1313
          ToPort: 1313
-         CidrIp: 0.0.0.0/0
+         CidrIp: !Ref AllowedCidr
      SecurityGroupEgress:
        - IpProtocol: tcp
          FromPort: 0

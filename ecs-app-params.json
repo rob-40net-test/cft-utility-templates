@@ -14,5 +14,9 @@
 	{
 		"ParameterKey": "AppSubnet",
 		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "AllowedCidr",
+		"ParameterValue": ""
 	}
 ]
