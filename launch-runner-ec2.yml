@@ -92,4 +92,4 @@ Resources:
           su -c 'sh /home/ssm-user/actions-runner/run.sh' ssm-user 
       Tags:
         - Key: Name
-          Value: EC2GHArunner
+          Value: !Sub "EC2GHArunner - ${AWS::StackName}"
