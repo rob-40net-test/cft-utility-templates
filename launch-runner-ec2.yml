@@ -75,6 +75,16 @@ Resources:
           yum install -y python3 docker git jq
           pip3 install cfn-lint
           systemctl start docker
+          check=false
+          while [ "$check" == false ];
+          do
+            if id "ssm-user" &>/dev/null; then
+             check=true
+            else
+             echo "waiting on ssm-user creation..."
+             sleep 5
+            fi
+          done
           usermod -a -G docker ssm-user
           curl -o /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz -L https://github.com/actions/runner/releases/download/v${RunnerVersion}/actions-runner-linux-x64-${RunnerVersion}.tar.gz
           echo "${HashCheck} /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz" | sha256sum -c || echo "Hash check failed."
