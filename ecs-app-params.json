@@ -3,6 +3,10 @@
                 "ParameterKey": "ECRRepo",
 		"ParameterValue": ""
 	},
+        {
+                "ParameterKey": "ECRRepoName",
+		"ParameterValue": ""
+	},
 	{
 		"ParameterKey": "KeyPair",
 		"ParameterValue": ""

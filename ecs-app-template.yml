@@ -3,6 +3,8 @@ Description: To deploy a containerized app to an ecs cluster.
 Parameters:
   ECRRepo:
     Type: String
+  ECRRepoName:
+    Type: String
   KeyPair:
     Type: String
   LatestAmiId:
@@ -171,7 +173,7 @@ Resources:
           result: 
             - SUCCESS   
           repository-name:
-            - !Ref ECRRepo 
+            - !Ref ECRRepoName 
       Targets:
         - Arn: !GetAtt UpdateSvcOnPush.Arn
           Id: LambdaUpdateSvc
