@@ -6,7 +6,6 @@ Parameters:
     Type: String
   KeyPair:
     Type: String
-    Default: "fgt-kp"
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
@@ -63,7 +62,7 @@ Resources:
     Properties:
       KeyName: !Ref KeyPair
       InstanceType: t2.small
-      AvailabilityZone: us-east-1a
+      AvailabilityZone: !Sub '${AWS::Region}a'
       ImageId: !Ref LatestAmiId
       IamInstanceProfile: !Ref SSMRoleProfile
       SecurityGroupIds:
@@ -75,31 +74,21 @@ Resources:
           yum install -y python3 docker git jq
           pip3 install cfn-lint
           systemctl start docker
-          check=false
-          while [ "$check" == false ];
-          do
-            if id "ssm-user" &>/dev/null; then
-             check=true
-            else
-             echo "waiting on ssm-user creation..."
-             sleep 5
-            fi
-          done
-          usermod -a -G docker ssm-user
+          useradd -m -G docker runner-user
           curl -o /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz -L https://github.com/actions/runner/releases/download/v${RunnerVersion}/actions-runner-linux-x64-${RunnerVersion}.tar.gz
           echo "${HashCheck} /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz" | sha256sum -c || echo "Hash check failed."
           mkdir -p /tmp/actions-runner
           tar xzf /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz -C /tmp/actions-runner
-          mv /tmp/actions-runner /home/ssm-user/
-          usermod -a -G docker ssm-user
+          mv /tmp/actions-runner /home/runner-user/
+          chown runner-user:runner-user -R /home/runner-user
           cat <<EOF >> /var/lib/cloud/scripts/per-boot/test.sh
           #!/bin/bash
           systemctl start docker
-          su -c 'sh /home/ssm-user/actions-runner/run.sh' ssm-user
+          su -c 'sh /home/runner-user/actions-runner/run.sh' runner-user
           EOF
           chmod 755 /var/lib/cloud/scripts/per-boot/test.sh
-          su -c 'sh /home/ssm-user/actions-runner/config.sh --url https://github.com/${RepoName}/${AppName} --token ${GHAToken}' ssm-user
-          su -c 'sh /home/ssm-user/actions-runner/run.sh' ssm-user 
+          su -c 'sh /home/runner-user/actions-runner/config.sh --url https://github.com/${RepoName}/${AppName} --token ${GHAToken}' runner-user
+          su -c 'sh /home/runner-user/actions-runner/run.sh' runner-user 
       Tags:
         - Key: Name
           Value: !Sub "EC2GHArunner - ${AWS::StackName}"
