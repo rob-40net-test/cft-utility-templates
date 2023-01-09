@@ -71,7 +71,9 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
           yum update -y && yum upgrade -y
-          yum install -y python3 docker git jq
+          yum install -y python3 docker git jq yum-utils
+          yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+          yum install -y terraform
           pip3 install cfn-lint
           systemctl start docker
           useradd -m -G docker runner-user
