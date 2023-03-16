@@ -22,5 +22,9 @@
 	{
 		"ParameterKey": "AllowedCidr",
 		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "ElasticIPAlloc",
+		"ParameterValue": ""
 	}
 ]

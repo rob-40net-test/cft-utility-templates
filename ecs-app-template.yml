@@ -16,6 +16,8 @@ Parameters:
     Type: String
   AllowedCidr:
     Type: String
+  ElasticIPAlloc:
+    Type: String
 Resources:
   ECSInstanceRole:
     Type: AWS::IAM::Role
@@ -85,6 +87,12 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
+          yum install -y wget unzip
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip /tmp/awscliv2.zip
+          ./aws/install
+          INSTANCE_ID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+          aws ec2 associate-address --allocation-id ${ElasticIPAlloc} --instance-id $INSTANCE_ID
           echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config;echo ECS_BACKEND_HOST= >> /etc/ecs/ecs.config
 
   EcsInstanceAsg:
@@ -114,8 +122,8 @@ Resources:
       Memory: 256
       Cpu: 256
       Family: WorkshopCluster
-      ExecutionRoleArn: !Ref ECSTaskExecRole
-      TaskRoleArn: !Ref ECSTaskExecRole 
+      ExecutionRoleArn: !GetAtt ECSTaskExecRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskExecRole.Arn
       ContainerDefinitions:
       - 
         Name: testImage
