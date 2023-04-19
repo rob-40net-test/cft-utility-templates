@@ -4,15 +4,31 @@
 # create a pipeline in Jenkins, and trigger a manual first build. Ensure you've downloaded the jenkins-cli.jar 
 # to your home directory.
 
-# Usage: ./setup-build-scripts.sh <Name of New Repo> <Github username of collaborator to be added>
+# Add the -p flag to add build parameters if testing Terraform builds.
 
-REPO_NAME=$1
-COLLAB=$2
+# Usage: ./setup-build-scripts.sh <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> -p
+
+CL_ARR=$@
+
+PPARAM="-p"
+if [[ " ${CL_ARR[*]} " =~ $PPARAM ]]; then
+  sed "s/REPO_NAME/$REPO_NAME/g" template-config-params.xml > config.xml
+  CL_ARR=($(echo "${CL_ARR[@]/$PPARAM}"))
+else
+  sed "s/REPO_NAME/$REPO_NAME/g" template-config.xml > config.xml
+  CL_ARR=($CL_ARR)
+fi
+
+TEMPLATE_REPO_NAME=${CL_ARR[0]}
+REPO_NAME=${CL_ARR[1]}
+COLLAB=${CL_ARR[2]}
+
+exit 0
 
 # Create repo
-gh repo create $REPO_NAME -p FortinetCloudCSE/DemoFrontEndDocker --public
+gh repo create $REPO_NAME -p FortinetCloudCSE/$TEMPLATE_REPO_NAME --public
 
-# Add user to repo as COLLABorator
+# Add user to repo as Collaborator
 gh api -X PUT repos/FortinetCloudCSE/$REPO_NAME/collaborators/$COLLAB
 [[ "$?" == "0" ]] || echo "Error adding $COLLAB as collaborator..."
 
@@ -57,10 +73,9 @@ gh api /repos/FortinetCloudCSE/$REPO_NAME/hooks \
 [[ "$?" == "0" ]] || echo "Error creating webhook..."
 
 # Create job in Jenkins
-sed "s/REPO_NAME/$REPO_NAME/g" template-config.xml > config.xml
-java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth admin:<insert API token here> create-job $REPO_NAME < config.xml
+java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth admin:<token> create-job $REPO_NAME < config.xml
 [[ "$?" == "0" ]] || echo "Error creating Jenkins pipeline..."
 
 # Run initial manual build of repo in Jenkins
-java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth admin:<insert API token here> build $REPO_NAME
+java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth admin:<token> build $REPO_NAME
 [[ "$?" == "0" ]] || echo "Error triggering first pipeline build..."
