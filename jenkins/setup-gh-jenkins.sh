@@ -6,11 +6,11 @@
 
 # Add the -p flag to add build parameters if testing Terraform builds.
 
-# Usage: ./setup-gh-jenkins.sh <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> -p
+# Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> [-p]
 
 CL_ARR=$@
 
-[[ " ${CL_ARR[*]} " =~ "-h" ]] && echo "Usage: ./setup-gh-jenkins.sh <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> -p" && exit 0
+[[ " ${CL_ARR[*]} " =~ "-h" ]] && echo "Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> -p" && exit 0
 
 PPARAM="-p"
 if [[ " ${CL_ARR[*]} " =~ $PPARAM ]]; then
@@ -21,9 +21,10 @@ else
   CL_ARR=($CL_ARR)
 fi
 
-TEMPLATE_REPO_NAME=${CL_ARR[0]}
-REPO_NAME=${CL_ARR[1]}
-COLLAB=${CL_ARR[2]}
+JENKINS_USER_ID=${CL_ARR[0]}
+TEMPLATE_REPO_NAME=${CL_ARR[1]}
+REPO_NAME=${CL_ARR[2]}
+COLLAB=${CL_ARR[3]}
 
 # Create repo
 gh repo create $REPO_NAME -p FortinetCloudCSE/$TEMPLATE_REPO_NAME --public
@@ -74,9 +75,9 @@ gh api /repos/FortinetCloudCSE/$REPO_NAME/hooks \
 
 # Create job in Jenkins
 sed "s/REPO_NAME/$REPO_NAME/g" $JCONF > config.xml
-java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth admin:<token> create-job $REPO_NAME < config.xml
+java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) create-job $REPO_NAME < config.xml
 [[ "$?" == "0" ]] || echo "Error creating Jenkins pipeline..."
 
 # Run initial manual build of repo in Jenkins
-java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth admin:<token> build $REPO_NAME
+java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) build $REPO_NAME
 [[ "$?" == "0" ]] || echo "Error triggering first pipeline build..."
