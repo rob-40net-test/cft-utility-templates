@@ -27,7 +27,7 @@ REPO_NAME=${CL_ARR[2]}
 COLLAB=${CL_ARR[3]}
 
 # Create repo
-gh repo create $REPO_NAME -p FortinetCloudCSE/$TEMPLATE_REPO_NAME --public
+gh repo create FortinetCloudCSE/$REPO_NAME -p FortinetCloudCSE/$TEMPLATE_REPO_NAME --public
 
 # Add user to repo as Collaborator
 gh api -X PUT repos/FortinetCloudCSE/$REPO_NAME/collaborators/$COLLAB
