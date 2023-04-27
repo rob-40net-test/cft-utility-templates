@@ -10,7 +10,7 @@
 
 CL_ARR=$@
 
-[[ " ${CL_ARR[*]} " =~ "-h" ]] && echo "Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> -p" && exit 0
+[[ " ${CL_ARR[*]} " =~ "-h" ]] && echo "Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> [-p]" && exit 0
 
 PPARAM="-p"
 if [[ " ${CL_ARR[*]} " =~ $PPARAM ]]; then
@@ -21,6 +21,10 @@ else
   CL_ARR=($CL_ARR)
 fi
 
+[[ "${#CL_ARR[@]}" -ne 4 ]] && \
+  echo "Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> [-p]" && \
+  exit 0
+
 JENKINS_USER_ID=${CL_ARR[0]}
 TEMPLATE_REPO_NAME=${CL_ARR[1]}
 REPO_NAME=${CL_ARR[2]}
@@ -28,6 +32,7 @@ COLLAB=${CL_ARR[3]}
 
 # Create repo
 gh repo create FortinetCloudCSE/$REPO_NAME -p FortinetCloudCSE/$TEMPLATE_REPO_NAME --public
+[[ "$?" == "0" ]] || echo "Error creating repo..."
 
 # Add user to repo as Collaborator
 gh api -X PUT repos/FortinetCloudCSE/$REPO_NAME/collaborators/$COLLAB
@@ -54,7 +59,8 @@ gh api -X PUT /repos/FortinetCloudCSE/$REPO_NAME/branches/main/protection \
     "require_code_owner_reviews": true,
     "require_last_push_approval": true,
     "required_approving_review_count": 1
-  }
+  },
+  "allow_force_pushes": true
 }'
 [[ "$?" == "0" ]] || echo "Error adding branch protections..."
 
