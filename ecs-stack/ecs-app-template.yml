@@ -112,7 +112,7 @@ Resources:
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: WorkshopCluster
+      ClusterName: !Ref ECRRepoName 
   ECSTaskDef:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -170,7 +170,7 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Description: Update service when new image pushed to ECR
-      Name: TriggerLambdaUpdateECS
+      Name: !Sub "events-rule-${AWS::StackName}"
       State: ENABLED
       EventPattern:
         source:
