@@ -79,6 +79,16 @@ gh api /repos/FortinetCloudCSE/$REPO_NAME/hooks \
 }'
 [[ "$?" == "0" ]] || echo "Error creating webhook..."
 
+# Enable pages
+gh api -X POST /repos/FortinetCloudCSE/$REPO_NAME/pages \
+   --input - <<< '{
+   "source":{
+     "branch":"main",
+     "path":"/docs"
+   }
+}'
+[[ "$?" == "0" ]] || echo "Error enabling GitHub Pages..."
+
 # Create job in Jenkins
 sed "s/REPO_NAME/$REPO_NAME/g" $JCONF > config.xml
 java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) create-job $REPO_NAME < config.xml
@@ -87,3 +97,5 @@ java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth $
 # Run initial manual build of repo in Jenkins
 java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) build $REPO_NAME
 [[ "$?" == "0" ]] || echo "Error triggering first pipeline build..."
+
+echo "GitHub Pages URL: https://fortinetcloudcse.github.io/"$REPO_NAME
