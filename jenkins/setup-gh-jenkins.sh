@@ -73,7 +73,7 @@ gh api /repos/FortinetCloudCSE/$REPO_NAME/hooks \
     "push"
   ],
   "config": {
-    "url": "http://jenkins.fortinetcloudcse.com:8080/github-webhook/",
+    "url": "https://jenkins.fortinetcloudcse.com:8443/github-webhook/",
     "content_type": "json"
   }
 }'
@@ -91,11 +91,11 @@ gh api -X POST /repos/FortinetCloudCSE/$REPO_NAME/pages \
 
 # Create job in Jenkins
 sed "s/REPO_NAME/$REPO_NAME/g" $JCONF > config.xml
-java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) create-job $REPO_NAME < config.xml
+java -jar ~/jenkins-cli.jar -s https://jenkins.fortinetcloudcse.com:8443/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) create-job $REPO_NAME < config.xml
 [[ "$?" == "0" ]] || echo "Error creating Jenkins pipeline..."
 
 # Run initial manual build of repo in Jenkins
-java -jar ~/jenkins-cli.jar -s http://jenkins.fortinetcloudcse.com:8080/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) build $REPO_NAME
+java -jar ~/jenkins-cli.jar -s https://jenkins.fortinetcloudcse.com:8443/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) build $REPO_NAME
 [[ "$?" == "0" ]] || echo "Error triggering first pipeline build..."
 
 echo "GitHub Pages URL: https://fortinetcloudcse.github.io/"$REPO_NAME
