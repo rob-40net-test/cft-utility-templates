@@ -1,25 +1,13 @@
 AWSTemplateFormatVersion: 2010-09-09
 Parameters:
-  VPCtoUse:
-    Type: String
-  GHAToken:
-    Type: String
   KeyPair:
     Type: String
-  LatestAmiId:
+    Default: fgt-kp
+  Linux2LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
-  HashCheck:
-    Type: String
-  AppName:
-    Type: String
-  RepoName:
-    Type: String
-  RunnerVersion:
-    Type: String
-
 Resources:
-  EC2RunnerAdminRole:
+  JenkinsRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -34,63 +22,215 @@ Resources:
               - "sts:AssumeRole"
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
-  SSMRoleProfile:
+  JenkinsVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+       - Key: Name
+         Value: Jenkins Cluster Stack
+  JenkinsSNa:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Sub '${AWS::Region}a'
+      VpcId: !Ref JenkinsVPC
+      MapPublicIpOnLaunch: 'true'
+  JenkinsSNb:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Sub '${AWS::Region}b'
+      VpcId: !Ref JenkinsVPC
+      MapPublicIpOnLaunch: 'true'
+  JenkinsSNc:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: !Sub '${AWS::Region}c'
+      VpcId: !Ref JenkinsVPC
+      MapPublicIpOnLaunch: 'true'
+  JenkinsVPCIG:
+    Type: AWS::EC2::InternetGateway
+    Properties: 
+      Tags: 
+       - Key: Name
+         Value: Jenkins VPC IG
+  JenkinsVPCIGAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !GetAtt JenkinsVPCIG.InternetGatewayId
+      VpcId: !Ref JenkinsVPC
+  JenkinsRTa:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref JenkinsVPC
+  JenkinsRTb:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref JenkinsVPC
+  JenkinsRTc:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref JenkinsVPC
+  JenkinsARoute:
+    Type: AWS::EC2::Route
+    DependsOn: JenkinsVPCIG
+    Properties:
+       RouteTableId: !Ref JenkinsRTa
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId: !Ref JenkinsVPCIG
+  JenkinsBRoute:
+    Type: AWS::EC2::Route
+    DependsOn: JenkinsVPCIG
+    Properties:
+       RouteTableId: !Ref JenkinsRTb
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId: !Ref JenkinsVPCIG
+  JenkinsCRoute:
+    Type: AWS::EC2::Route
+    DependsOn: JenkinsVPCIG
+    Properties:
+       RouteTableId: !Ref JenkinsRTc
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId: !Ref JenkinsVPCIG
+  JenkinsARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref JenkinsRTa 
+      SubnetId: !Ref JenkinsSNa
+  JenkinsBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref JenkinsRTb
+      SubnetId: !Ref JenkinsSNb
+  JenkinsCRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref JenkinsRTc 
+      SubnetId: !Ref JenkinsSNc
+  JenkinsRoleProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref EC2RunnerAdminRole
-  RunnerSG:
+        - !Ref JenkinsRole
+  WorkerNodeSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Outbound HTTPS all allow
-      VpcId: !Ref VPCtoUse
+      GroupDescription: Jenkins Worker Node SG
+      VpcId: !Ref JenkinsVPC
       SecurityGroupEgress:
       - CidrIp: 0.0.0.0/0
-        FromPort: 443
+        FromPort: 0
         IpProtocol: tcp
-        ToPort: 443
+        ToPort: 65535
+  MainNodeSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Jenkins Main Node SG
+      VpcId: !Ref JenkinsVPC
+      SecurityGroupEgress:
       - CidrIp: 0.0.0.0/0
-        FromPort: 80
+        FromPort: 0
         IpProtocol: tcp
-        ToPort: 80
+        ToPort: 65535
+      SecurityGroupIngress:
+      - SourceSecurityGroupId: !GetAtt WorkerNodeSG.GroupId
+        FromPort: 0
+        IpProtocol: tcp
+        ToPort: 65535
       - CidrIp: 0.0.0.0/0
-        FromPort: 22
+        FromPort: 8443
         IpProtocol: tcp
-        ToPort: 22
-  EC2Runner:
+        ToPort: 8443
+  WorkerNodeIngressFromMain:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 0
+      ToPort: 65535
+      GroupId: !GetAtt WorkerNodeSG.GroupId
+      SourceSecurityGroupId: !GetAtt MainNodeSG.GroupId 
+  JenkinsMainNode:
     Type: AWS::EC2::Instance
     Properties:
       KeyName: !Ref KeyPair
-      InstanceType: t2.small
-      AvailabilityZone: !Sub '${AWS::Region}a'
-      ImageId: !Ref LatestAmiId
-      IamInstanceProfile: !Ref SSMRoleProfile
+      InstanceType: m4.large
+      SubnetId: !Ref JenkinsSNa
+      ImageId: !Ref Linux2LatestAmiId
+      IamInstanceProfile: !Ref JenkinsRoleProfile
       SecurityGroupIds:
-        - !Ref RunnerSG
+        - !Ref MainNodeSG
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
-          yum update -y && yum upgrade -y
-          yum install -y python3 docker git jq yum-utils
-          yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
-          yum install -y terraform
-          pip3 install cfn-lint
+          yum update -y
+          yum install -y amazon-linux-extras git docker 
+          amazon-linux-extras install -y java-openjdk11
+          wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+          rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+          yum upgrade -y
+          yum install -y jenkins
+          systemctl enable jenkins
+          systemctl start jenkins
+          usermod -aG docker jenkins
+          systemctl enable docker
           systemctl start docker
-          useradd -m -G docker runner-user
-          curl -o /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz -L https://github.com/actions/runner/releases/download/v${RunnerVersion}/actions-runner-linux-x64-${RunnerVersion}.tar.gz
-          echo "${HashCheck} /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz" | sha256sum -c || echo "Hash check failed."
-          mkdir -p /tmp/actions-runner
-          tar xzf /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz -C /tmp/actions-runner
-          mv /tmp/actions-runner /home/runner-user/
-          chown runner-user:runner-user -R /home/runner-user
-          cat <<EOF >> /var/lib/cloud/scripts/per-boot/test.sh
-          #!/bin/bash
-          systemctl start docker
-          su -c 'sh /home/runner-user/actions-runner/run.sh' runner-user
-          EOF
-          chmod 755 /var/lib/cloud/scripts/per-boot/test.sh
-          su -c 'sh /home/runner-user/actions-runner/config.sh --url https://github.com/${RepoName}/${AppName} --token ${GHAToken}' runner-user
-          su -c 'sh /home/runner-user/actions-runner/run.sh' runner-user 
       Tags:
-        - Key: Name
-          Value: !Sub "EC2GHArunner - ${AWS::StackName}"
+      - Key: Name
+        Value: !Sub "Jenkins Main Node - ${AWS::StackName}"
+  WorkerNodeLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: WorkerNodeLaunchTemplate
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - JenkinsRoleProfile
+            - Arn
+        ImageId: !Ref Linux2LatestAmiId
+        InstanceType: m4.large
+        KeyName: !Ref KeyPair
+        SecurityGroupIds:
+          - !GetAtt WorkerNodeSG.GroupId 
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+            #!/bin/bash
+            yum update -y
+            yum install -y amazon-linux-extras git docker python3 jq yum-utils
+            amazon-linux-extras install -y java-openjdk11
+            yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+            yum install -y terraform
+            pip3 install cfn-lint
+            useradd -m jenkins
+            mkdir -p /home/jenkins/.ssh
+            chown -R jenkins:jenkins /home/jenkins/.ssh
+            chmod 700 /home/jenkins/.ssh
+            su -c "touch /home/jenkins/.ssh/authorized_keys" jenkins
+            su -c "ssh-keygen -t rsa -f /home/jenkins/.ssh/id_rsa -N ''" jenkins
+            su -c "cat /home/jenkins/.ssh/id_rsa.pub > /home/jenkins/.ssh/authorized_keys" jenkins
+            chmod 600 /home/jenkins/.ssh/*
+            usermod -aG docker jenkins
+            systemctl enable docker
+            systemctl start docker
+  JenkinsWorkerAsg:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+      - !Ref JenkinsSNa
+      - !Ref JenkinsSNb
+      - !Ref JenkinsSNc
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WorkerNodeLaunchTemplate
+        Version: !GetAtt WorkerNodeLaunchTemplate.LatestVersionNumber
+      MinSize: 0
+      MaxSize: 2
+      DesiredCapacity: 1
+      Tags:
+        -
+          Key: Name
+          Value: !Sub "Jenkins Worker Node - ${AWS::StackName}"
+          PropagateAtLaunch: true
