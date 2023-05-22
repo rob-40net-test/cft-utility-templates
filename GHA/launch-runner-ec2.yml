@@ -46,17 +46,9 @@ Resources:
       VpcId: !Ref VPCtoUse
       SecurityGroupEgress:
       - CidrIp: 0.0.0.0/0
-        FromPort: 443
+        FromPort: 0
         IpProtocol: tcp
-        ToPort: 443
-      - CidrIp: 0.0.0.0/0
-        FromPort: 80
-        IpProtocol: tcp
-        ToPort: 80
-      - CidrIp: 0.0.0.0/0
-        FromPort: 22
-        IpProtocol: tcp
-        ToPort: 22
+        ToPort: 65535
       SecurityGroupIngress:
       - CidrIp: 0.0.0.0/0
         FromPort: 443

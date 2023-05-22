@@ -99,3 +99,4 @@ java -jar ~/jenkins-cli.jar -s https://jenkins.fortinetcloudcse.com:8443/ -auth 
 [[ "$?" == "0" ]] || echo "Error triggering first pipeline build..."
 
 echo "GitHub Pages URL: https://fortinetcloudcse.github.io/"$REPO_NAME
+echo "Create FortiDevSec app and paste app id into fdevsec.yaml."
