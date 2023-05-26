@@ -2,7 +2,7 @@
 
 # Script to create a repo within FortinetCloudCSE from a template repo, add a webhook to trigger Jenkins builds, 
 # create a pipeline in Jenkins, and trigger a manual first build. Ensure you've downloaded the jenkins-cli.jar 
-# to your home directory.
+# to your home directory  and that your Jenkins access token is retrievable at ~/.jenkins-cli.
 
 # Add the -p flag to add build parameters if testing Terraform builds.
 
