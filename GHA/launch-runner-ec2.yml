@@ -98,4 +98,4 @@ Resources:
           su -c 'sh /home/runner-user/actions-runner/run.sh' runner-user 
       Tags:
         - Key: Name
-          Value: !Sub "EC2GHArunner - ${AWS::StackName}"
+          Value: !Sub "GHArunner - ${AWS::StackName}"

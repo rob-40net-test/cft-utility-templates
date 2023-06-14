@@ -121,12 +121,12 @@ Resources:
       NetworkMode: bridge
       Memory: 256
       Cpu: 256
-      Family: WorkshopCluster
+      Family: !Sub "TD-Family-${AWS::StackName}"
       ExecutionRoleArn: !GetAtt ECSTaskExecRole.Arn
       TaskRoleArn: !GetAtt ECSTaskExecRole.Arn
       ContainerDefinitions:
       - 
-        Name: testImage
+        Name: !Ref ECRRepoName 
         Image: !Ref ECRRepo
         PortMappings:
         - 
@@ -136,7 +136,7 @@ Resources:
   ECSClusterService:
     Type: AWS::ECS::Service
     Properties:
-      ServiceName: WorkshopSvc 
+      ServiceName: !Sub "ECS-Service-${AWS::StackName}"
       Cluster: !GetAtt ECSCluster.Arn   
       DeploymentConfiguration:
         MaximumPercent: 100
