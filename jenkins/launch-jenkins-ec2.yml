@@ -3,7 +3,7 @@ Parameters:
   KeyPair:
     Type: String
     Default: fgt-kp
-  Linux2LatestAmiId:
+  LaunchAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
 Resources:
@@ -159,7 +159,7 @@ Resources:
       KeyName: !Ref KeyPair
       InstanceType: m4.large
       SubnetId: !Ref JenkinsSNa
-      ImageId: !Ref Linux2LatestAmiId
+      ImageId: !Ref LaunchAmiId
       IamInstanceProfile: !Ref JenkinsRoleProfile
       SecurityGroupIds:
         - !Ref MainNodeSG
@@ -190,7 +190,7 @@ Resources:
           Arn: !GetAtt
             - JenkinsRoleProfile
             - Arn
-        ImageId: !Ref Linux2LatestAmiId
+        ImageId: !Ref LaunchAmiId
         InstanceType: m4.large
         KeyName: !Ref KeyPair
         SecurityGroupIds:

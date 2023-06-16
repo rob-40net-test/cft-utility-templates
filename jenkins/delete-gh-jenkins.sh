@@ -8,10 +8,10 @@
 
 CL_ARR=($@)
 
-[[ " ${CL_ARR[*]} " =~ "-h" ]] && echo "Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Repo/Job>" && exit 0
+[[ " ${CL_ARR[*]} " =~ "-h" ]] && echo "Usage: ./delete-gh-jenkins.sh <Your Jenkins user id> <Name of Repo/Job>" && exit 0
 
 [[ "${#CL_ARR[@]}" -ne 2 ]] && \
-  echo "Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Repo/Job>" && \
+  echo "Usage: ./delete-gh-jenkins.sh <Your Jenkins user id> <Name of Repo/Job>" && \
   exit 0
 
 JENKINS_USER_ID=${CL_ARR[0]}
