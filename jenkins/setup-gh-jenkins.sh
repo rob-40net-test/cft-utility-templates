@@ -82,6 +82,7 @@ gh api /repos/FortinetCloudCSE/$REPO_NAME/hooks \
 # Enable pages
 gh api -X POST /repos/FortinetCloudCSE/$REPO_NAME/pages \
    --input - <<< '{
+   "build_type":"workflow",
    "source":{
      "branch":"main",
      "path":"/docs"

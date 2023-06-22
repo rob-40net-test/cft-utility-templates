@@ -1,10 +1,10 @@
 [
-        {
-                "ParameterKey": "VPCtoUse",
-		"ParameterValue": ""
-	},
 	{
 		"ParameterKey": "KeyPair",
 		"ParameterValue": ""
-	}
+	},
+        {
+                "ParameterKey": "ElasticIPMainNode",
+                "ParameterValue": ""
+        }
 ]

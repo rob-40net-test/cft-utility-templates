@@ -6,7 +6,46 @@ Parameters:
   LaunchAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  ElasticIPMainNode:
+    Type: String
 Resources:
+  JenkinsPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref JenkinsRole
+      PolicyName: JenkinsMGMTPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'ec2:DescribeSpotFleetInstances'
+              - 'ec2:ModifySpotFleetRequest'
+              - 'ec2:CreateTags'
+              - 'ec2:DescribeRegions'
+              - 'ec2:DescribeInstances'
+              - 'ec2:TerminateInstances'
+              - 'ec2:DescribeInstanceStatus'
+              - 'ec2:DescribeSpotFleetRequests'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'autoscaling:DescribeAutoScalingGroups'
+              - 'autoscaling:UpdateAutoScalingGroup'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'iam:ListInstanceProfiles'
+              - 'iam:ListRoles'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'iam:PassRole'
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'iam:PassedToService': 'ec2.amazonaws.com'
   JenkinsRole:
     Type: AWS::IAM::Role
     Properties:
@@ -77,21 +116,27 @@ Resources:
       VpcId: !Ref JenkinsVPC
   JenkinsARoute:
     Type: AWS::EC2::Route
-    DependsOn: JenkinsVPCIG
+    DependsOn: 
+    - JenkinsVPCIG
+    - JenkinsVPCIGAttach
     Properties:
        RouteTableId: !Ref JenkinsRTa
        DestinationCidrBlock: 0.0.0.0/0
        GatewayId: !Ref JenkinsVPCIG
   JenkinsBRoute:
     Type: AWS::EC2::Route
-    DependsOn: JenkinsVPCIG
+    DependsOn: 
+    - JenkinsVPCIG
+    - JenkinsVPCIGAttach
     Properties:
        RouteTableId: !Ref JenkinsRTb
        DestinationCidrBlock: 0.0.0.0/0
        GatewayId: !Ref JenkinsVPCIG
   JenkinsCRoute:
     Type: AWS::EC2::Route
-    DependsOn: JenkinsVPCIG
+    DependsOn: 
+    - JenkinsVPCIG
+    - JenkinsVPCIGAttach
     Properties:
        RouteTableId: !Ref JenkinsRTc
        DestinationCidrBlock: 0.0.0.0/0
@@ -145,6 +190,10 @@ Resources:
         FromPort: 8443
         IpProtocol: tcp
         ToPort: 8443
+      - CidrIp: 0.0.0.0/0
+        FromPort: 8080
+        IpProtocol: tcp
+        ToPort: 8080
   WorkerNodeIngressFromMain:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -181,6 +230,11 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub "Jenkins Main Node - ${AWS::StackName}"
+  EC2EIPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !Ref ElasticIPMainNode 
+      NetworkInterfaceId: !Ref JenkinsMainNode
   WorkerNodeLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -198,24 +252,20 @@ Resources:
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash -xe
-            #!/bin/bash
             yum update -y
             yum install -y amazon-linux-extras git docker python3 jq yum-utils
             amazon-linux-extras install -y java-openjdk11
             yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
             yum install -y terraform
             pip3 install cfn-lint
+            curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+            mv /usr/local/bin/tflint /usr/bin
             useradd -m jenkins
-            mkdir -p /home/jenkins/.ssh
-            chown -R jenkins:jenkins /home/jenkins/.ssh
-            chmod 700 /home/jenkins/.ssh
-            su -c "touch /home/jenkins/.ssh/authorized_keys" jenkins
-            su -c "ssh-keygen -t rsa -f /home/jenkins/.ssh/id_rsa -N ''" jenkins
-            su -c "cat /home/jenkins/.ssh/id_rsa.pub > /home/jenkins/.ssh/authorized_keys" jenkins
-            chmod 600 /home/jenkins/.ssh/*
             usermod -aG docker jenkins
             systemctl enable docker
             systemctl start docker
+            cp -R /home/ec2-user/.ssh /home/jenkins
+            chown -R jenkins:jenkins /home/jenkins/.ssh
   JenkinsWorkerAsg:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -228,7 +278,7 @@ Resources:
         Version: !GetAtt WorkerNodeLaunchTemplate.LatestVersionNumber
       MinSize: 0
       MaxSize: 2
-      DesiredCapacity: 1
+      DesiredCapacity: 0
       Tags:
         -
           Key: Name
