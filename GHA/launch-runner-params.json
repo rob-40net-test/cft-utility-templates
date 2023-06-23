@@ -1,30 +1,30 @@
 [
         {
                 "ParameterKey": "VPCtoUse",
-		"ParameterValue": "vpc-06cc8a38bba631898"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "GHAToken",
-		"ParameterValue": "A4H44W55CWSP4A3HZXGP5Q3ENPKRW"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "KeyPair",
-		"ParameterValue": "fgt-kp"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "HashCheck",
-		"ParameterValue": "292e8770bdeafca135c2c06cd5426f9dda49a775568f45fcc25cc2b576afc12f"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "AppName",
-		"ParameterValue": "FortiDAST-gha-demo"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "RepoName",
-		"ParameterValue": "robreris"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "RunnerVersion",
-		"ParameterValue": "2.304.0"
+		"ParameterValue": ""
 	}
 ]
