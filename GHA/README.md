@@ -31,7 +31,7 @@ export AWS_DEFAULT_REGION=us-east-1 && export AWS_PROFILE=user-admin
 
   * VPCtoUse: Any pre-existing VPC in your AWS account. 
   * KeyPair: The name of a key pair in your AWS account.
-  * For RepoName and AppName, these can be found in the URL of your GitHub Repo. i.e. https://github.com/RepoName/AppName
+  * For OrgName and RepoName, these can be found in the URL of your GitHub Repo. i.e. https://github.com/OrgName/RepoName
   * RunnerVersion, GHAToken, and HashCheck can be found in the Download and Configure Sections of the Create Runner page, as shown below (red, blue, and green boxes, respectively).
 
   !["Create Runner"](runner-setup.png)
@@ -57,12 +57,12 @@ export AWS_DEFAULT_REGION=us-east-1 && export AWS_PROFILE=user-admin
          "ParameterValue": "292e8770bdeafca135c2c06cd5426f9dda49a775568f45fcc25cc2b576afc12f"
     },
     {
-         "ParameterKey": "AppName",
-         "ParameterValue": "MyRepo"
+         "ParameterKey": "OrgName",
+         "ParameterValue": "MyOrg"
     },
     {
          "ParameterKey": "RepoName",
-         "ParameterValue": "MyOrg"
+         "ParameterValue": "MyRepo"
     },
     {
          "ParameterKey": "RunnerVersion",

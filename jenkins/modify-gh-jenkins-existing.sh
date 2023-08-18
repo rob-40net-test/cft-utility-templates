@@ -1,38 +1,31 @@
 #!/bin/bash
 
-# Script to create a repo within FortinetCloudCSE from a template repo, add a webhook to trigger Jenkins builds, 
+# Script to add branch protections and a webhook to an existing GitHub repo to trigger Jenkins builds, 
 # create a pipeline in Jenkins, and trigger a manual first build. Ensure you've downloaded the jenkins-cli.jar 
 # to your home directory  and that your Jenkins access token is retrievable at ~/.jenkins-cli.
 
-# Add the -p flag to add build parameters if testing Terraform builds.
-
-# Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> [-p]
+# Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Repo> <Github username of collaborator to be added>
 
 CL_ARR=$@
 
-[[ " ${CL_ARR[*]} " =~ "-h" ]] && echo "Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> [-p]" && exit 0
+[[ " ${CL_ARR[*]} " =~ "-h" ]] && echo "Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Repo> <Github username of collaborator to be added> " && exit 0
 
-PPARAM="-p"
-if [[ " ${CL_ARR[*]} " =~ $PPARAM ]]; then
-  JCONF="template-config-params.xml"
-  CL_ARR=($(echo "${CL_ARR[@]/$PPARAM}"))
-else
-  JCONF="template-config.xml"
-  CL_ARR=($CL_ARR)
-fi
+JCONF="template-config.xml"
+CL_ARR=($CL_ARR)
 
-[[ "${#CL_ARR[@]}" -ne 4 ]] && \
-  echo "Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> [-p]" && \
-  exit 0
+[[ "${#CL_ARR[@]}" -ne 3 ]] && \
+  echo "Usage: ./setup-gh-jenkins.sh <Your Jenkins user id> <Name of Repo> <Github username of collaborator to be added>" && exit 0
 
 JENKINS_USER_ID=${CL_ARR[0]}
-TEMPLATE_REPO_NAME=${CL_ARR[1]}
-REPO_NAME=${CL_ARR[2]}
-COLLAB=${CL_ARR[3]}
+REPO_NAME=${CL_ARR[1]}
+COLLAB=${CL_ARR[2]}
 
 # Create repo
-gh repo create FortinetCloudCSE/$REPO_NAME -p FortinetCloudCSE/$TEMPLATE_REPO_NAME --public
-[[ "$?" == "0" ]] || echo "Error creating repo..."
+git ls-remote https://github.com/FortinetCloudCSE/$REPO_NAME
+if [[ "$?" != "0" ]]; then 
+  echo "Error: repo not found in FortinetCloudCSE org, exiting..." 
+  exit 1
+fi
 
 # Add user to repo as Collaborator
 gh api -X PUT repos/FortinetCloudCSE/$REPO_NAME/collaborators/$COLLAB
@@ -79,17 +72,6 @@ gh api /repos/FortinetCloudCSE/$REPO_NAME/hooks \
 }'
 [[ "$?" == "0" ]] || echo "Error creating webhook..."
 
-# Enable pages
-gh api -X POST /repos/FortinetCloudCSE/$REPO_NAME/pages \
-   --input - <<< '{
-   "build_type":"workflow",
-   "source":{
-     "branch":"main",
-     "path":"/docs"
-   }
-}'
-[[ "$?" == "0" ]] || echo "Error enabling GitHub Pages..."
-
 # Create job in Jenkins
 sed "s/REPO_NAME/$REPO_NAME/g" $JCONF > config.xml
 java -jar ~/jenkins-cli.jar -s https://jenkins.fortinetcloudcse.com:8443/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) create-job $REPO_NAME < config.xml
@@ -99,5 +81,8 @@ java -jar ~/jenkins-cli.jar -s https://jenkins.fortinetcloudcse.com:8443/ -auth 
 java -jar ~/jenkins-cli.jar -s https://jenkins.fortinetcloudcse.com:8443/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) build $REPO_NAME
 [[ "$?" == "0" ]] || echo "Error triggering first pipeline build..."
 
-echo "GitHub Pages URL: https://fortinetcloudcse.github.io/"$REPO_NAME
-echo "Create FortiDevSec app and paste app id into fdevsec.yaml."
+if [[ "$?" == "0" ]]; then 
+  echo "Repo modified successfully and Jenkins pipeline created."
+else
+  echo "One or more errors occurred. See stdout above for errors."
+fi

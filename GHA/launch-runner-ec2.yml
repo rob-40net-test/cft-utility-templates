@@ -11,7 +11,7 @@ Parameters:
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
   HashCheck:
     Type: String
-  AppName:
+  OrgName:
     Type: String
   RepoName:
     Type: String
@@ -94,7 +94,7 @@ Resources:
           su -c 'sh /home/runner-user/actions-runner/run.sh' runner-user
           EOF
           chmod 755 /var/lib/cloud/scripts/per-boot/test.sh
-          su -c 'sh /home/runner-user/actions-runner/config.sh --url https://github.com/${RepoName}/${AppName} --token ${GHAToken}' runner-user
+          su -c 'sh /home/runner-user/actions-runner/config.sh --url https://github.com/${OrgName}/${RepoName} --token ${GHAToken}' runner-user
           su -c 'sh /home/runner-user/actions-runner/run.sh' runner-user 
       Tags:
         - Key: Name
