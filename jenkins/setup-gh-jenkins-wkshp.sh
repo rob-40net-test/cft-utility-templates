@@ -10,7 +10,7 @@
 
 CL_ARR=$@
 
-[[ " ${CL_ARR[*]} " =~ "-h" ]] && echo "Usage: ./setup-gh-jenkins-wkshp.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> [-p]" && exit 0
+[[ " ${CL_ARR[*]} " =~ " -h " ]] && echo "Usage: ./setup-gh-jenkins-wkshp.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> [-p]" && exit 0
 
 PPARAM="-p"
 if [[ " ${CL_ARR[*]} " =~ $PPARAM ]]; then
