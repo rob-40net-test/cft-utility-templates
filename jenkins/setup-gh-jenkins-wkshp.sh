@@ -8,11 +8,11 @@
 
 # Usage: ./setup-gh-jenkins-wkshp.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> [-p]
 
-CL_ARR=$@
+CL_ARR="$@"
 
 [[ " ${CL_ARR[*]} " =~ " -h " ]] && echo "Usage: ./setup-gh-jenkins-wkshp.sh <Your Jenkins user id> <Name of Template Repo> <Name of New Repo> <Github username of collaborator to be added> [-p]" && exit 0
 
-PPARAM="-p"
+PPARAM=" -p "
 if [[ " ${CL_ARR[*]} " =~ $PPARAM ]]; then
   JCONF="template-config-params.xml"
   CL_ARR=($(echo "${CL_ARR[@]/$PPARAM}"))
@@ -31,20 +31,20 @@ REPO_NAME=${CL_ARR[2]}
 COLLAB=${CL_ARR[3]}
 
 # Create repo
-gh repo create FortinetCloudCSE/$REPO_NAME -p FortinetCloudCSE/$TEMPLATE_REPO_NAME --public
+gh repo create "FortinetCloudCSE/$REPO_NAME" -p "FortinetCloudCSE/$TEMPLATE_REPO_NAME" --public
 [[ "$?" == "0" ]] || echo "Error creating repo..."
 
 # Add user to repo as Collaborator
-gh api -X PUT repos/FortinetCloudCSE/$REPO_NAME/collaborators/$COLLAB
+gh api -X PUT "repos/FortinetCloudCSE/$REPO_NAME/collaborators/$COLLAB"
 [[ "$?" == "0" ]] || echo "Error adding $COLLAB as collaborator..."
 
 # Add branch protection rules
 while : ; do  
-  BR_CHECK=$(gh api /repos/FortinetCloudCSE/$REPO_NAME/branches | jq -r '.[] | select(.name=="main")')
+  BR_CHECK=$(gh api "/repos/FortinetCloudCSE/$REPO_NAME/branches" | jq -r '.[] | select(.name=="main")')
   [[ -z "$BR_CHECK" ]] || break
 done
 
-gh api -X PUT /repos/FortinetCloudCSE/$REPO_NAME/branches/main/protection \
+gh api -X PUT "/repos/FortinetCloudCSE/$REPO_NAME/branches/main/protection" \
    --input - <<< '{
   "required_status_checks": {
     "strict": true,
@@ -65,7 +65,7 @@ gh api -X PUT /repos/FortinetCloudCSE/$REPO_NAME/branches/main/protection \
 [[ "$?" == "0" ]] || echo "Error adding branch protections..."
 
 # Create github webhook for jenkins builds
-gh api /repos/FortinetCloudCSE/$REPO_NAME/hooks \
+gh api "/repos/FortinetCloudCSE/$REPO_NAME/hooks" \
    --input - <<< '{
   "name": "web",
   "active": true,
@@ -80,7 +80,7 @@ gh api /repos/FortinetCloudCSE/$REPO_NAME/hooks \
 [[ "$?" == "0" ]] || echo "Error creating webhook..."
 
 # Enable pages
-gh api -X POST /repos/FortinetCloudCSE/$REPO_NAME/pages \
+gh api -X POST "/repos/FortinetCloudCSE/$REPO_NAME/pages" \
    --input - <<< '{
    "build_type":"workflow",
    "source":{
@@ -92,12 +92,12 @@ gh api -X POST /repos/FortinetCloudCSE/$REPO_NAME/pages \
 
 # Create job in Jenkins
 sed "s/REPO_NAME/$REPO_NAME/g" $JCONF > config.xml
-java -jar ~/jenkins-cli.jar -s https://jenkins.fortinetcloudcse.com:8443/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) create-job $REPO_NAME < config.xml
+java -jar ~/jenkins-cli.jar -s https://jenkins.fortinetcloudcse.com:8443/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) create-job "$REPO_NAME" < config.xml
 [[ "$?" == "0" ]] || echo "Error creating Jenkins pipeline..."
 
 # Run initial manual build of repo in Jenkins
-java -jar ~/jenkins-cli.jar -s https://jenkins.fortinetcloudcse.com:8443/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) build $REPO_NAME
+java -jar ~/jenkins-cli.jar -s https://jenkins.fortinetcloudcse.com:8443/ -auth $JENKINS_USER_ID:$(cat ~/.jenkins-cli) build "$REPO_NAME"
 [[ "$?" == "0" ]] || echo "Error triggering first pipeline build..."
 
-echo "GitHub Pages URL: https://fortinetcloudcse.github.io/"$REPO_NAME
+echo "GitHub Pages URL: https://fortinetcloudcse.github.io/$REPO_NAME"
 echo "Create FortiDevSec app and paste app id into fdevsec.yaml."
