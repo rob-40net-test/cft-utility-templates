@@ -1,10 +1,10 @@
 [
 	{
 		"ParameterKey": "KeyPair",
-		"ParameterValue": ""
+		"ParameterValue": "fgt-kp"
 	},
         {
                 "ParameterKey": "ElasticIPMainNode",
-                "ParameterValue": ""
+                "ParameterValue": "eipalloc-036067399d628a11c"
         }
 ]

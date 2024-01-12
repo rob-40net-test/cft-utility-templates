@@ -28,6 +28,10 @@ Resources:
               - 'ec2:TerminateInstances'
               - 'ec2:DescribeInstanceStatus'
               - 'ec2:DescribeSpotFleetRequests'
+              - 'ec2:DescribeInstanceTypes'
+              - 'ec2:DescribeFleets'
+              - 'ec2:DescribeFleetInstances'
+              - 'ec2:ModifyFleet'
             Resource: '*'
           - Effect: Allow
             Action:
@@ -234,7 +238,7 @@ Resources:
     Type: AWS::EC2::EIPAssociation
     Properties:
       AllocationId: !Ref ElasticIPMainNode 
-      NetworkInterfaceId: !Ref JenkinsMainNode
+      InstanceId: !Ref JenkinsMainNode
   WorkerNodeLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -258,13 +262,18 @@ Resources:
             yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
             yum install -y terraform
             pip3 install cfn-lint
+            cp /usr/local/bin/cfn-lint /usr/bin
             curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
             mv /usr/local/bin/tflint /usr/bin
             useradd -m jenkins
             usermod -aG docker jenkins
             systemctl enable docker
             systemctl start docker
-            cp -R /home/ec2-user/.ssh /home/jenkins
+            mkdir -p /home/jenkins/.ssh
+            chmod 700 /home/jenkins/.ssh
+            cp -R /home/ec2-user/.ssh/authorized_keys /home/jenkins/.ssh
+            ssh -o StrictHostKeychecking=no -T git@github.com
+            cp ~/.ssh/known_hosts /home/jenkins/.ssh
             chown -R jenkins:jenkins /home/jenkins/.ssh
   JenkinsWorkerAsg:
     Type: AWS::AutoScaling::AutoScalingGroup
