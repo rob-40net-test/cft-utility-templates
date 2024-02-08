@@ -3,14 +3,15 @@
 # Script for modifying existing GitHub repo configurations and/or creating a pipeline in Jenkins for an existing GitHub repo.
 #
 # Usage:
-# modify-cicd.sh [-j userid] [-c username -c username ... ] [-w] [-b] [-f template-config.xml] <name of repository>
+# modify-cicd.sh [-j userid] [-c username -c username ... ] [-w] [-r] [-b] [-f template-config.xml] <name of repository>
 #   -j Jenkins userid; if left out only GitHub operations will be performed
 #   -c usernames of collaborator to add to repo
 #   -w add a Jenkins webhook to the repo
+#   -r remove Main branch protections
 #   -b add branch protections based on Jenkins pipeline execution status
 #   -f specify a Jenkins pipeline configuration xml
 
-while getopts 'j:c:wh' opt; do
+while getopts 'j:c:rwbh' opt; do
   case "${opt}" in
     j)
       JENKINS_TASK=1
@@ -29,11 +30,17 @@ while getopts 'j:c:wh' opt; do
       USER_SUPPLIED_JCONF=1
       JCONF="$OPTARG"
       ;;
+    r)
+      REM_PROT=1
+      ;;
     h)
-      echo "Usage: modify-cicd.sh [-j userid] [-c username -c username ... ] [-w] <name of repository>"
+      echo "Usage: modify-cicd.sh [-j userid] [-c username -c username ... ] [-w] [-r] [-b] [-f template-config.xml] <name of repository>"
       echo "-j Jenkins userid; if left out only GitHub operations will be performed"
       echo "-c username of collaborator to add to repo"
       echo "-w add a Jenkins webhook to the repo"
+      echo "-r remove Main branch protections"
+      echo "-b add branch protections based on Jenkins pipeline execution status"
+      echo "-f specify a Jenkins pipeline configuration xml"
       exit 0
       ;;
     *)
@@ -48,8 +55,8 @@ JCONF=${JCONF:-"template-config.xml"}
 REPO_NAME=$1
 
 # Check repo exists
-git ls-remote https://github.com/FortinetCloudCSE/$REPO_NAME
-[[ "$?" == "0" ]] || { "That repo doesn't exist, exiting..."; exit 1; }
+git ls-remote https://github.com/FortinetCloudCSE/$REPO_NAME > /dev/null
+[[ "$?" == "0" ]] && echo "Branch protection rule deleted." || { "That repo doesn't exist, exiting..."; exit 1; }
 
 # Add webhook if specified
 if [[ "$ADD_WEBHOOK" == "1" ]]; then
@@ -89,6 +96,15 @@ if [[ "$ADD_BR_PROTECT" == "1" ]]; then
     "allow_force_pushes": true
   }'
   [[ "$?" == "0" ]] || echo "Error adding branch protections..."
+fi
+
+# Delete branch protection rule
+if [[ "$REM_PROT" == "1" ]]; then
+  gh api \
+    --method DELETE \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    "/repos/FortinetCloudCSE/$REPO_NAME/branches/main/protection"
 fi
 
 # Add collaborators
