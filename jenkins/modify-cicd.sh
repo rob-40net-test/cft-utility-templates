@@ -18,6 +18,7 @@ while getopts 'j:c:rwbh' opt; do
       JENKINS_USER_ID="$OPTARG"
       ;;
     c)
+      ADD_COLLABS=1
       COLLABS+=("$OPTARG")
       ;;
     w)
@@ -108,11 +109,13 @@ if [[ "$REM_PROT" == "1" ]]; then
 fi
 
 # Add collaborators
-for collab in "${COLLABS[@]}"
-do
-  gh api -X PUT repos/FortinetCloudCSE/$REPO_NAME/collaborators/$collab
-  [[ "$?" == "0" ]] || echo "Error adding $collab as collaborator..."
-done
+if [[ "$ADD_COLLABS" == "1" ]]; then
+  for collab in "${COLLABS[@]}"
+    do
+      gh api -X PUT repos/FortinetCloudCSE/$REPO_NAME/collaborators/$collab
+      [[ "$?" == "0" ]] || echo "Error adding $collab as collaborator..."
+    done
+fi
 
 # Create Jenkins pipeline if specified
 if [[ "$JENKINS_TASK" == "1" ]]; then
