@@ -8,7 +8,7 @@ Parameters:
     Type: String
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64'
   HashCheck:
     Type: String
   OrgName:
@@ -76,12 +76,18 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
           yum update -y && yum upgrade -y
-          yum install -y python3 docker git jq yum-utils
+          yum install -y python3 python3-pip docker git jq yum-utils libicu
+          yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+          systemctl enable amazon-ssm-agent
+          systemctl start amazon-ssm-agent
           yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
           yum install -y terraform
           pip3 install cfn-lint
           systemctl start docker
           useradd -m -G docker runner-user
+          curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.28.5/2024-01-04/bin/linux/amd64/kubectl
+          chmod +x ./kubectl
+          mv kubectl /usr/bin/          
           curl -o /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz -L https://github.com/actions/runner/releases/download/v${RunnerVersion}/actions-runner-linux-x64-${RunnerVersion}.tar.gz
           echo "${HashCheck} /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz" | sha256sum -c || echo "Hash check failed."
           mkdir -p /tmp/actions-runner

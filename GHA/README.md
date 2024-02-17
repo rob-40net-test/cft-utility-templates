@@ -81,4 +81,11 @@ aws cloudformation create-stack --stack-name <enter a name for your stack here> 
 
   ![Runner Complete](runner-complete.png)
 
-- Also note that the EC2 instance is launched with permissions enabling connection via Session Manager for any required troubleshooting or modifications. 
+- Also note that the EC2 instance is launched with permissions enabling connection via Session Manager for any required troubleshooting or modifications.
+
+* To enable the runner to perform operations on a Kubernetes cluster, identify the ARN of the role attached to the EC2 instance hosting the runner and issue
+the following command:
+
+```
+eksctl create iamidentitymapping --cluster <Cluster Name> --region $AWS_DEFAULT_REGION --arn <Runner IAM Role ARN> --group system:masters --username admin
+``` 
