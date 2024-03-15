@@ -58,15 +58,11 @@ Resources:
         FromPort: 80
         IpProtocol: tcp
         ToPort: 80
-      - CidrIp: 0.0.0.0/0
-        FromPort: 22
-        IpProtocol: tcp
-        ToPort: 22
   EC2Runner:
     Type: AWS::EC2::Instance
     Properties:
       KeyName: !Ref KeyPair
-      InstanceType: t2.small
+      InstanceType: t3.large
       AvailabilityZone: !Sub '${AWS::Region}a'
       ImageId: !Ref LatestAmiId
       IamInstanceProfile: !Ref SSMRoleProfile
