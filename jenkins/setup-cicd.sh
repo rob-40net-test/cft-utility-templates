@@ -3,13 +3,14 @@
 # Script for setting up github repo and (optionally) an accompanying jenkins pipeline.
 #
 # Usage: 
-# setup-cicd.sh [-t repo] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>
+# setup-cicd.sh [-t repo] [-r] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>
 #   -t Name of template repository
+#   -r Update README with Workshop Pages link
 #   -j Jenkins userid
 #   -f Jenkins pipeline configuration xml file (if unset the default config file will be used)
 #   -c GitHub username of collaborator to add
 
-while getopts 't:j:c:hf:' opt; do
+while getopts 't:j:c:hf:r' opt; do
   case "${opt}" in
     t)
       USE_TEMPLATE=1 
@@ -26,9 +27,13 @@ while getopts 't:j:c:hf:' opt; do
       USER_SUPPLIED_JCONF=1
       JCONF="$OPTARG"
       ;;
+    r)
+      UPDATE_README=1
+      ;;
     h)
-      echo "Usage: setup-cicd.sh [-t repo] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>"
+      echo "Usage: setup-cicd.sh [-t repo] [-r] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>"
       echo "-t Name of template repository"
+      echo "-r Update README with Workshop Pages link"
       echo "-j Jenkins userid"
       echo "-f Jenkins pipeline configuration xml file (if unset the default config file will be used)"
       echo "-c GitHub username of collaborator to add"
@@ -91,6 +96,24 @@ gh api -X POST "/repos/FortinetCloudCSE/$REPO_NAME/pages" \
 }'
 [[ "$?" == "0" ]] && echo "****GitHub Pages URL: https://fortinetcloudcse.github.io/$REPO_NAME" || \
   echo "Error enabling GitHub Pages..."
+
+################ Retrieve Pages URL and update README
+if [[ $UPDATE_README == 1 ]]; then
+  PG_URL=$(gh api -X GET -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    /repos/FortinetCloudCSE/$REPO_NAME/pages | jq -r '.html_url')
+  README_CONTENT="<h1>$REPO_NAME</h1><h3>To view the workshop, please go here: <a href="$PG_URL">$REPO_NAME</a></h3><hr><h3>For more information on creating these workshops, please go here: <a href="https://fortinetcloudcse.github.io/UserRepo/">FortinetCloudCSE User Repo</a></h3>"
+  README_CONTENT_ENC=$(echo -n "$README_CONTENT" | base64)
+  README_SHA=$(gh api "/repos/FortinetCloudCSE/$REPO_NAME/contents/README.md" --jq ".sha")
+  gh api --method PUT \
+     -H "Accept: application/vnd.github.json" \
+     -H "X-GitHub-Api-Version: 2022-11-28" \
+      /repos/FortinetCloudCSE/$REPO_NAME/contents/README.md \
+     -f "message=Adding README with workshop URL" \
+     -f "content=$README_CONTENT_ENC" \
+     -f sha="$README_SHA"
+  [[ "$?" == "0" ]] && echo "README successfully updated with Workshop pages URL" 
+fi
 
 ################ Add colaborators
 for collab in "${COLLABS[@]}"
