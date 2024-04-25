@@ -3,14 +3,15 @@
 # Script for setting up github repo and (optionally) an accompanying jenkins pipeline.
 #
 # Usage: 
-# setup-cicd.sh [-t repo] [-r] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>
+# setup-cicd.sh [-t repo] [-r] [-b] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>
 #   -t Name of template repository
 #   -r Update README with Workshop Pages link
+#   -b Apply branch protections
 #   -j Jenkins userid
 #   -f Jenkins pipeline configuration xml file (if unset the default config file will be used)
 #   -c GitHub username of collaborator to add
 
-while getopts 't:j:c:hf:r' opt; do
+while getopts 't:j:c:hf:rb' opt; do
   case "${opt}" in
     t)
       USE_TEMPLATE=1 
@@ -30,10 +31,14 @@ while getopts 't:j:c:hf:r' opt; do
     r)
       UPDATE_README=1
       ;;
+    b)
+      APPLY_BR_PROT=1
+      ;;
     h)
-      echo "Usage: setup-cicd.sh [-t repo] [-r] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>"
+      echo "Usage: setup-cicd.sh [-t repo] [-r] [-b] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>"
       echo "-t Name of template repository"
       echo "-r Update README with Workshop Pages link"
+      echo "-b Apply branch protections"
       echo "-j Jenkins userid"
       echo "-f Jenkins pipeline configuration xml file (if unset the default config file will be used)"
       echo "-c GitHub username of collaborator to add"
@@ -65,25 +70,27 @@ while : ; do
 done
 
 ################ Set up branch protections
-gh api -X PUT "/repos/FortinetCloudCSE/$REPO_NAME/branches/main/protection" \
-   --input - <<< '{
-  "required_status_checks": {
-    "strict": true,
-    "contexts": [
-       "ci/jenkins/build-status"
-    ]
-  },
-  "enforce_admins": false,
-  "restrictions": null,
-  "required_pull_request_reviews": {
-    "dismiss_stale_reviews": true,
-    "require_code_owner_reviews": true,
-    "require_last_push_approval": true,
-    "required_approving_review_count": 1
-  },
-  "allow_force_pushes": true
-}'
-[[ "$?" == "0" ]] || echo "Error adding branch protections..."
+if [[ "$APPLY_BR_PROT" ]]; 
+  gh api -X PUT "/repos/FortinetCloudCSE/$REPO_NAME/branches/main/protection" \
+     --input - <<< '{
+    "required_status_checks": {
+      "strict": true,
+      "contexts": [
+         "ci/jenkins/build-status"
+      ]
+    },
+    "enforce_admins": false,
+    "restrictions": null,
+    "required_pull_request_reviews": {
+      "dismiss_stale_reviews": true,
+      "require_code_owner_reviews": true,
+      "require_last_push_approval": true,
+      "required_approving_review_count": 1
+    },
+    "allow_force_pushes": true
+  }'
+  [[ "$?" == "0" ]] || echo "Error adding branch protections..."
+fi
 
 ################ Enable pages
 gh api -X POST "/repos/FortinetCloudCSE/$REPO_NAME/pages" \
