@@ -8,10 +8,11 @@
 #   -c usernames of collaborator to add to repo
 #   -w add a Jenkins webhook to the repo
 #   -r remove Main branch protections
+#   -u update README with GitHub pages URL
 #   -b add branch protections based on Jenkins pipeline execution status
 #   -f specify a Jenkins pipeline configuration xml
 
-while getopts 'j:c:rwbh' opt; do
+while getopts 'j:c:rwbhu' opt; do
   case "${opt}" in
     j)
       JENKINS_TASK=1
@@ -34,12 +35,16 @@ while getopts 'j:c:rwbh' opt; do
     r)
       REM_PROT=1
       ;;
+    u) 
+      UPDATE_README=1
+      ;;
     h)
       echo "Usage: modify-cicd.sh [-j userid] [-c username -c username ... ] [-w] [-r] [-b] [-f template-config.xml] <name of repository>"
       echo "-j Jenkins userid; if left out only GitHub operations will be performed"
       echo "-c username of collaborator to add to repo"
       echo "-w add a Jenkins webhook to the repo"
       echo "-r remove Main branch protections"
+      echo "-u update README with GitHub pages URL"
       echo "-b add branch protections based on Jenkins pipeline execution status"
       echo "-f specify a Jenkins pipeline configuration xml"
       exit 0
@@ -57,7 +62,7 @@ REPO_NAME=$1
 
 # Check repo exists
 git ls-remote https://github.com/FortinetCloudCSE/$REPO_NAME > /dev/null
-[[ "$?" == "0" ]] && echo "Branch protection rule deleted." || { "That repo doesn't exist, exiting..."; exit 1; }
+[[ "$?" == "0" ]] && echo "Repo found..." || { "That repo doesn't exist, exiting..."; exit 1; }
 
 # Add webhook if specified
 if [[ "$ADD_WEBHOOK" == "1" ]]; then
@@ -106,6 +111,24 @@ if [[ "$REM_PROT" == "1" ]]; then
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     "/repos/FortinetCloudCSE/$REPO_NAME/branches/main/protection"
+fi
+
+# Retrieve Pages URL and update README
+if [[ "$UPDATE_README" == "1" ]]; then
+  PG_URL=$(gh api -X GET -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    /repos/FortinetCloudCSE/$REPO_NAME/pages | jq -r '.html_url')
+  README_CONTENT="<h1>$REPO_NAME</h1><h3>To view the workshop, please go here: <a href="$PG_URL">$REPO_NAME</a></h3><hr><h3>For more information on creating these workshops, please go here: <a href="https://fortinetcloudcse.github.io/UserRepo/">FortinetCloudCSE User Repo</a></h3>"
+  README_CONTENT_ENC=$(echo -n "$README_CONTENT" | base64)
+  README_SHA=$(gh api "/repos/FortinetCloudCSE/$REPO_NAME/contents/README.md" --jq ".sha")
+  gh api --method PUT \
+     -H "Accept: application/vnd.github.json" \
+     -H "X-GitHub-Api-Version: 2022-11-28" \
+      /repos/FortinetCloudCSE/$REPO_NAME/contents/README.md \
+     -f "message=Adding README with workshop URL" \
+     -f "content=$README_CONTENT_ENC" \
+     -f sha="$README_SHA"
+  [[ "$?" == "0" ]] && echo "README successfully updated with Workshop pages URL"
 fi
 
 # Add collaborators

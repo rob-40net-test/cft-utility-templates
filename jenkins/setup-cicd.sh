@@ -58,7 +58,7 @@ REPO_NAME=$1
 [[ $REPO_NAME ]] || { echo "Error: please specify a name for the new repository."; exit 0; }
 
 ################ Create Repo
-[[ $USE_TEMPLATE == 1 ]] && \
+[[ "$USE_TEMPLATE" == "1" ]] && \
   gh repo create "FortinetCloudCSE/$REPO_NAME" -p "FortinetCloudCSE/$TEMPLATE_REPO_NAME" --public || \
   gh repo create "FortinetCloudCSE/$REPO_NAME" --public --add-readme
 [[ "$?" == "0" ]] || { echo "Error creating repository, exiting script..."; exit 1; }
@@ -70,7 +70,7 @@ while : ; do
 done
 
 ################ Set up branch protections
-if [[ "$APPLY_BR_PROT" ]]; 
+if [[ "$APPLY_BR_PROT" ]]; then 
   gh api -X PUT "/repos/FortinetCloudCSE/$REPO_NAME/branches/main/protection" \
      --input - <<< '{
     "required_status_checks": {
@@ -105,7 +105,7 @@ gh api -X POST "/repos/FortinetCloudCSE/$REPO_NAME/pages" \
   echo "Error enabling GitHub Pages..."
 
 ################ Retrieve Pages URL and update README
-if [[ $UPDATE_README == 1 ]]; then
+if [[ "$UPDATE_README" == "1" ]]; then
   PG_URL=$(gh api -X GET -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     /repos/FortinetCloudCSE/$REPO_NAME/pages | jq -r '.html_url')
@@ -129,7 +129,7 @@ do
   [[ "$?" == "0" ]] || echo "Error adding $collab as collaborator..."
 done
 
-if [[ $JENKINS_PIPE == 1 ]]; then
+if [[ "$JENKINS_PIPE" == "1" ]]; then
 
   ############## Create github webhook for jenkins builds
   gh api "/repos/FortinetCloudCSE/$REPO_NAME/hooks" \
@@ -147,7 +147,7 @@ if [[ $JENKINS_PIPE == 1 ]]; then
   [[ "$?" == "0" ]] || echo "Error creating webhook..."
 
   ############## Create job in Jenkins
-  if [[ $USER_SUPPLIED_JCONF == 1 ]]; then 
+  if [[ "$USER_SUPPLIED_JCONF" == "1" ]]; then 
     cat $JCONF > config.xml
   else
     sed "s/REPO_NAME/$REPO_NAME/g" $JCONF > config.xml
