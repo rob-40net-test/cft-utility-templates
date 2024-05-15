@@ -35,8 +35,18 @@ export AWS_DEFAULT_REGION=us-east-1 && export AWS_PROFILE=user-admin
   * RunnerVersion, GHAToken, and HashCheck can be found in the Download and Configure Sections of the Create Runner page, as shown below (red, blue, and green boxes, respectively).
 
   !["Create Runner"](runner-setup.png)
+ 
+  * Note: You can also retrieve a token via the GitHub api if you have it installed:
+    ```
+    > gh auth login
+    > gh api \
+        --method POST \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: 2022-11-28" \
+        /repos/<Repo owner or organization>/<Repo name>/actions/runners/registration-token | jq -r .token
+    ```
 
-  * When finished, your launch-runner-params.yaml file should look like this example:
+  * When finished, after pasting in the values, your launch-runner-params.yaml file should look like this example:
 
 ```
 [
