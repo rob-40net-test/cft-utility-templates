@@ -1,0 +1,30 @@
+[
+ {
+  "ParameterKey": "MNKeyPair",
+  "ParameterValue": ""
+ },
+ {
+  "ParameterKey": "WNKeyPair",
+  "ParameterValue": ""
+ },
+ {
+  "ParameterKey": "VPCId",
+  "ParameterValue": ""
+ },
+ {
+  "ParameterKey": "MySubnet",
+  "ParameterValue": ""
+ },
+ {
+  "ParameterKey": "JenkinsBucket",
+  "ParameterValue": "arn:..."
+ },
+ {
+  "ParameterKey": "JenkinsHomeS3Location",
+  "ParameterValue": "s3://..."
+ },
+ {
+  "ParameterKey": "JenkinsKeyStoreLocation",
+  "ParameterValue": "s3://..."
+ }
+]

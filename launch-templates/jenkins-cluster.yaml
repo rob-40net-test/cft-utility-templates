@@ -1,18 +1,14 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Deploy a launch template and IAM role for Jenkins main node deployment.'
+Description: 'Deploys launch templates for jenkins cluster main and worker nodes, and an associated IAM role and security group.'
 
 Parameters:
   MNKeyPair:
     Type: String
   WNKeyPair:
     Type: String
-  MNSecGrp:
-    Type: String
-  WNSecGrp:
-    Type: String
   AMIId:
-    Type: String
-    Default: ami-00beae93a2d981137
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
     Description: "Default is Amazon Linux 2023."
   VPCId:
     Type: String
@@ -54,7 +50,7 @@ Resources:
           SourceSecurityGroupId: !GetAtt JenkinsWNSecGrp.GroupId
       SecurityGroupEgress:
         - IpProtocol: -1
-          CidrIp: 0.0.0.0
+          CidrIp: 0.0.0.0/0
   JenkinsWNSecGrp:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -62,7 +58,7 @@ Resources:
       VpcId: !Ref VPCId
       SecurityGroupEgress:
         - IpProtocol: -1
-          CidrIp: 0.0.0.0
+          CidrIp: 0.0.0.0/0
   JenkinsWNInboundRule:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -155,7 +151,7 @@ Resources:
             DeviceIndex: 0
             SubnetId: !Ref MySubnet
             Groups:
-              - !Ref MNSecGrp
+              - !Ref JenkinsMNSecGrp
         TagSpecifications:
           - ResourceType: instance
             Tags:
@@ -178,12 +174,12 @@ Resources:
               usermod -aG docker jenkins
               systemctl enable docker
               systemctl start docker
-              if [ -n "${JenkinsHomeS3Location}" ]; then
+              if [ -n "${JenkinsBucket}" ]; then
                 rm -rf /var/lib/jenkins/*
                 aws s3 cp ${JenkinsHomeS3Location} /var/lib/jenkins --recursive
                 chown -R jenkins:jenkins /var/lib/jenkins
                 mkdir -p /etc/jenkins
-                aws s3 cp ${JenkinsKeyStoreLocation} /etc/jenkins
+                aws s3 cp ${JenkinsKeyStoreLocation} /etc/jenkins --recursive
                 chmod 700 /etc/jenkins
                 chmod 600 /etc/jenkins/jenkins.jks
                 chown -R jenkins:jenkins /etc/jenkins
@@ -205,7 +201,7 @@ Resources:
             DeviceIndex: 0
             SubnetId: !Ref MySubnet
             Groups:
-              - !Ref WNSecGrp
+              - !Ref JenkinsWNSecGrp
         TagSpecifications:
           - ResourceType: instance
             Tags:
