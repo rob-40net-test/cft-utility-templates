@@ -1,0 +1,253 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy a launch template and IAM role for Jenkins main node deployment.'
+
+Parameters:
+  MNKeyPair:
+    Type: String
+  WNKeyPair:
+    Type: String
+  MNSecGrp:
+    Type: String
+  WNSecGrp:
+    Type: String
+  AMIId:
+    Type: String
+    Default: ami-00beae93a2d981137
+    Description: "Default is Amazon Linux 2023."
+  VPCId:
+    Type: String
+  MySubnet:
+    Type: String
+  JenkinsBucket:
+    Description: "ARN of bucket where the JENKINS_HOME and keystore objects reside (for IAM role permissions)."
+    Type: String
+  JenkinsHomeS3Location:
+    Description: "If migrating an old installation, the S3 URI of location holding the old JENKINS_HOME directory."
+    Type: String
+  JenkinsKeyStoreLocation:
+    Description: "If migrating an old installation, the S3 URI of location holding the old Jenkins keystore for https setup."
+    Type: String
+Resources:
+  JenkinsMNSecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Jenkins main node sg
+      VpcId: !Ref VPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8443
+          ToPort: 8443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: -1
+          SourceSecurityGroupId: !GetAtt JenkinsWNSecGrp.GroupId
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0
+  JenkinsWNSecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Jenkins main node sg
+      VpcId: !Ref VPCId
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0
+  JenkinsWNInboundRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt JenkinsWNSecGrp.GroupId
+      IpProtocol: -1
+      SourceSecurityGroupId: !GetAtt JenkinsMNSecGrp.GroupId
+  JenkinsIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3ReadWritetoBucket
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:List*
+                Resource:
+                  - !Ref JenkinsBucket
+                  - !Sub ${JenkinsBucket}/*
+        - PolicyName: EC2FleetPluginPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeSpotFleetInstances
+                  - ec2:ModifySpotFleetRequest
+                  - ec2:CreateTags
+                  - ec2:DescribeRegions
+                  - ec2:DescribeInstances
+                  - ec2:TerminateInstances
+                  - ec2:DescribeInstanceStatus
+                  - ec2:DescribeSpotFleetRequests
+                  - ec2:DescribeFleets
+                  - ec2:DescribeFleetInstances
+                  - ec2:ModifyFleet
+                  - ec2:DescribeInstanceTypes
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - autoscaling:DescribeAutoScalingGroups
+                  - autoscaling:UpdateAutoScalingGroup
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - iam:ListInstanceProfiles
+                  - iam:ListRoles
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    iam:PassedToService:
+                      - ec2.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      RoleName: JenkinsRole
+  JenkinsIP:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref JenkinsIAMRole
+  JenkinsMainLaunchTempalate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        InstanceType: m4.large
+        KeyName: !Ref MNKeyPair 
+        ImageId: !Ref AMIId
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 16
+              VolumeType: gp2
+        NetworkInterfaces:
+          - AssociatePublicIpAddress: true
+            DeviceIndex: 0
+            SubnetId: !Ref MySubnet
+            Groups:
+              - !Ref MNSecGrp
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: jenkins-main-node
+        IamInstanceProfile:
+          Name: !Ref JenkinsIP
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash
+              yum update -y
+              yum install -y git docker java-17-amazon-corretto-devel
+              wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+              rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+              yum upgrade -y
+              yum install -y jenkins
+              systemctl enable jenkins
+              systemctl start jenkins
+              usermod -aG docker jenkins
+              systemctl enable docker
+              systemctl start docker
+              if [ -n "${JenkinsHomeS3Location}" ]; then
+                rm -rf /var/lib/jenkins/*
+                aws s3 cp ${JenkinsHomeS3Location} /var/lib/jenkins --recursive
+                chown -R jenkins:jenkins /var/lib/jenkins
+                mkdir -p /etc/jenkins
+                aws s3 cp ${JenkinsKeyStoreLocation} /etc/jenkins
+                chmod 700 /etc/jenkins
+                chmod 600 /etc/jenkins/jenkins.jks
+                chown -R jenkins:jenkins /etc/jenkins
+              fi
+  JenkinsWorkerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        InstanceType: m4.xlarge
+        KeyName: !Ref WNKeyPair 
+        ImageId: !Ref AMIId
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 8
+              VolumeType: gp2
+        NetworkInterfaces:
+          - AssociatePublicIpAddress: true
+            DeviceIndex: 0
+            SubnetId: !Ref MySubnet
+            Groups:
+              - !Ref WNSecGrp
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: jenkins-worker-node
+        IamInstanceProfile:
+          Name: !Ref JenkinsIP
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash
+              yum update -y
+              yum install -y git docker python3 jq yum-utils java-17-amazon-corretto-devel
+              yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+              yum install -y terraform
+              pip3 install cfn-lint
+              cp /usr/local/bin/cfn-lint /usr/bin
+              curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+              mv /usr/local/bin/tflint /usr/bin
+              useradd -m jenkins
+              usermod -aG docker jenkins
+              systemctl enable docker
+              systemctl start docker
+              mkdir -p /home/jenkins/.ssh
+              chmod 700 /home/jenkins/.ssh
+              cp -R /home/ec2-user/.ssh/authorized_keys /home/jenkins/.ssh
+              ssh -o StrictHostKeychecking=no -T git@github.com
+              cp ~/.ssh/known_hosts /home/jenkins/.ssh
+              chown -R jenkins:jenkins /home/jenkins/.ssh
+  JenkinsASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: JenkinsASG
+      LaunchTemplate:
+        LaunchTemplateId: !Ref JenkinsWorkerLaunchTemplate
+        Version: !GetAtt JenkinsWorkerLaunchTemplate.LatestVersionNumber
+      MinSize: 0
+      MaxSize: 3
+      DesiredCapacity: 0
+      VPCZoneIdentifier:
+        - !Ref MySubnet
+      Tags:
+        - Key: Name
+          Value: JenkinsASG
+          PropagateAtLaunch: true 
