@@ -134,7 +134,7 @@ Resources:
       Path: "/"
       Roles:
         - !Ref JenkinsIAMRole
-  JenkinsMainLaunchTempalate:
+  JenkinsMainLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
