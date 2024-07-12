@@ -192,3 +192,6 @@ Ensure the **Use TCP_NODELAY flag on the SSH connection** and **Private IP** box
 You should now see a new instance creating in the AWS EC2 console. 
 
 In Jenkins, you can also navigate to Dashboard > Manage Jenkins > Nodes, and you'll see the new node there with a name in the form of '\<cloud\> \<EC2 instance id\>'. It may take a few moments to become available.
+
+### Integrating GitHub
+

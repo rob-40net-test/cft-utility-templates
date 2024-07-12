@@ -13,7 +13,7 @@
   <keepDependencies>false</keepDependencies>
   <properties>
     <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.37.0">
-      <projectUrl>https://github.com/FortinetCloudCSE/testrepo/</projectUrl>
+      <projectUrl>https://github.com/FortinetCloudCSE/test0712d/</projectUrl>
       <displayName></displayName>
     </com.coravy.hudson.plugins.github.GithubProjectProperty>
     <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
@@ -29,7 +29,7 @@
       <configVersion>2</configVersion>
       <userRemoteConfigs>
         <hudson.plugins.git.UserRemoteConfig>
-          <url>https://github.com/FortinetCloudCSE/testrepo.git</url>
+          <url>https://github.com/FortinetCloudCSE/test0712d.git</url>
           <credentialsId>jenkins-git</credentialsId>
         </hudson.plugins.git.UserRemoteConfig>
       </userRemoteConfigs>

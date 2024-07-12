@@ -3,15 +3,22 @@
 # Script for setting up github repo and (optionally) an accompanying jenkins pipeline.
 #
 # Usage: 
-# setup-cicd.sh [-t repo] [-r] [-b] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>
+# setup-cicd.sh [-t repo] [-r] [-b] [-s] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>
 #   -t Name of template repository
 #   -r Update README with Workshop Pages link
 #   -b Apply branch protections
 #   -j Jenkins userid
+#   -s Setup FortiSevSec application
 #   -f Jenkins pipeline configuration xml file (if unset the default config file will be used)
 #   -c GitHub username of collaborator to add
+#
+# Note: This script assumes:
+#    * The Jenkins CLI is installed at ~/jenkins-cli.jar
+#    * A Jenkins personal access token is installed at ~/.jenkins-cli. The file should only contain the token on the first line of the file and nothing else.
+#    * A FortiDevSec API token is installed at ~/fds-token.txt. The file should only contain the token on the first line of the file and nothing else.
 
-while getopts 't:j:c:hf:rb' opt; do
+
+while getopts 't:j:c:hf:srb' opt; do
   case "${opt}" in
     t)
       USE_TEMPLATE=1 
@@ -31,16 +38,20 @@ while getopts 't:j:c:hf:rb' opt; do
     r)
       UPDATE_README=1
       ;;
+    s)
+      SETUP_FDS=1
+      ;;
     b)
       APPLY_BR_PROT=1
       ;;
     h)
-      echo "Usage: setup-cicd.sh [-t repo] [-r] [-b] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>"
+      echo "Usage: setup-cicd.sh [-t repo] [-r] [-s] [-b] [-j userid] [-f template-config.xml] [-c username1 -c username2 ... ] <name of new repo>"
       echo "-t Name of template repository"
       echo "-r Update README with Workshop Pages link"
       echo "-b Apply branch protections"
       echo "-j Jenkins userid"
       echo "-f Jenkins pipeline configuration xml file (if unset the default config file will be used)"
+      echo "-s Setup FortiDevSec application"
       echo "-c GitHub username of collaborator to add"
       exit 0
       ;;
@@ -54,6 +65,25 @@ shift $((OPTIND - 1))
 
 JCONF=${JCONF:-"template-config.xml"}
 REPO_NAME=$1
+TREE_FIELDS=()
+
+update_tree_array () {
+  FILENAME=$1
+  OLD_STRING=$2
+  NEW_STRING=$3
+  RESPONSE=$(gh api /repos/FortinetCloudCSE/$REPO_NAME/contents/$FILENAME)
+  CONTENT=$(echo "$RESPONSE" | jq -r '.content' | base64 --decode)
+  UPDATED_CONTENT=$(echo "$CONTENT" | sed 's/'"$OLD_STRING"'/'"$NEW_STRING"'/g')
+  BLOB_SHA=$(gh api repos/FortinetCloudCSE/$REPO_NAME/git/blobs \
+    --method POST \
+    -f content="$UPDATED_CONTENT" \
+    -f encoding="utf-8" \
+    -q '.sha') 
+  TREE_FIELDS+=("-f \"tree[][path]=$FILENAME\"")
+  TREE_FIELDS+=("-f \"tree[][mode]=100644\"")
+  TREE_FIELDS+=("-f \"tree[][type]=blob\"")
+  TREE_FIELDS+=("-f \"tree[][sha]=$BLOB_SHA\"")
+}
 
 [[ $REPO_NAME ]] || { echo "Error: please specify a name for the new repository."; exit 0; }
 
@@ -68,6 +98,10 @@ while : ; do
   BR_CHECK=$(gh api "/repos/FortinetCloudCSE/$REPO_NAME/branches" | jq -r '.[] | select(.name=="main")')
   [[ -z "$BR_CHECK" ]] || break
 done
+
+## Get current commit SHA and current tree SHA for ensuing steps
+CURRENT_COMMIT_SHA=$(gh api repos/FortinetCloudCSE/$REPO_NAME/branches/main -q '.commit.sha')
+BASE_TREE_SHA=$(gh api repos/FortinetCloudCSE/$REPO_NAME/git/commits/$CURRENT_COMMIT_SHA -q '.tree.sha')
 
 ################ Set up branch protections
 if [[ "$APPLY_BR_PROT" ]]; then 
@@ -104,23 +138,39 @@ gh api -X POST "/repos/FortinetCloudCSE/$REPO_NAME/pages" \
 [[ "$?" == "0" ]] && echo "****GitHub Pages URL: https://fortinetcloudcse.github.io/$REPO_NAME" || \
   echo "Error enabling GitHub Pages..."
 
-################ Retrieve Pages URL and update README
+## Update README with GH Pages link
 if [[ "$UPDATE_README" == "1" ]]; then
   PG_URL=$(gh api -X GET -H "Accept: application/vnd.github+json" \
-    -H "X-GitHub-Api-Version: 2022-11-28" \
-    /repos/FortinetCloudCSE/$REPO_NAME/pages | jq -r '.html_url')
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      /repos/FortinetCloudCSE/$REPO_NAME/pages | jq -r '.html_url')
   README_CONTENT="<h1>$REPO_NAME</h1><h3>To view the workshop, please go here: <a href="$PG_URL">$REPO_NAME</a></h3><hr><h3>For more information on creating these workshops, please go here: <a href="https://fortinetcloudcse.github.io/UserRepo/">FortinetCloudCSE User Repo</a></h3>"
-  README_CONTENT_ENC=$(echo -n "$README_CONTENT" | base64)
-  README_SHA=$(gh api "/repos/FortinetCloudCSE/$REPO_NAME/contents/README.md" --jq ".sha")
-  gh api --method PUT \
-     -H "Accept: application/vnd.github.json" \
-     -H "X-GitHub-Api-Version: 2022-11-28" \
-      /repos/FortinetCloudCSE/$REPO_NAME/contents/README.md \
-     -f "message=Adding README with workshop URL" \
-     -f "content=$README_CONTENT_ENC" \
-     -f sha="$README_SHA"
-  [[ "$?" == "0" ]] && echo "README successfully updated with Workshop pages URL" 
+  BLOB_SHA=$(gh api repos/FortinetCloudCSE/$REPO_NAME/git/blobs \
+    --method POST \
+    -f content="$README_CONTENT" \
+    -f encoding="utf-8" \
+    -q '.sha')
+  TREE_FIELDS+=("-f \"tree[][path]=README.md\"")
+  TREE_FIELDS+=("-f \"tree[][mode]=100644\"")
+  TREE_FIELDS+=("-f \"tree[][type]=blob\"")
+  TREE_FIELDS+=("-f \"tree[][sha]=$BLOB_SHA\"")
 fi
+
+################ FortiDevSec Setup
+if [[ "$SETUP_FDS" == "1" ]]; then
+   TOKEN=$(cat ~/fds-token.txt)
+   
+   ORG_ID=$(curl -X GET "https://fortidevsec.forticloud.com/api/v1/dashboard/get_orgs" \
+       -H "Authorization: Bearer $TOKEN" \
+       -H "Content-Type: application/json" | jq '.[0].id')
+   
+   FDS_APP_ID=$(curl -X POST "https://fortidevsec.forticloud.com/api/v1/dashboard/create_app?org_id=$ORG_ID&app_name=$REPO_NAME" \
+       -H "Authorization: Bearer $TOKEN" \
+       -H "Content-Type: application/json" | jq -r '.app_uuid')
+
+   update_tree_array "fdevsec.yaml" "<insert app id here>" "$FDS_APP_ID"
+fi
+[[ "$?" == "0" ]] && echo "FortiDevSec application setup successfully."
+
 
 ################ Add colaborators
 for collab in "${COLLABS[@]}"
@@ -129,7 +179,10 @@ do
   [[ "$?" == "0" ]] || echo "Error adding $collab as collaborator..."
 done
 
+################ Jenkins setup
 if [[ "$JENKINS_PIPE" == "1" ]]; then
+
+  update_tree_array "Jenkinsfile" "when { expression { false } }" "when { expression { true } }"
 
   ############## Create github webhook for jenkins builds
   gh api "/repos/FortinetCloudCSE/$REPO_NAME/hooks" \
@@ -161,4 +214,26 @@ if [[ "$JENKINS_PIPE" == "1" ]]; then
   
   echo "Create FortiDevSec app and paste app id into fdevsec.yaml."
 
+fi
+
+################ Create Git tree with updated files
+if [[ "${#TREE_FIELDS[@]}" > 0 ]]; then
+  NEW_TREE_SHA=$(eval "gh api /repos/FortinetCloudCSE/$REPO_NAME/git/trees \
+    --method POST \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    -f 'base_tree=$BASE_TREE_SHA' ${TREE_FIELDS[@]} \
+    -q '.sha'")
+  
+  COMMIT_MESSAGE="Initial repo setup."
+  NEW_COMMIT_SHA=$(gh api repos/FortinetCloudCSE/$REPO_NAME/git/commits \
+    --method POST \
+    -f "message=$COMMIT_MESSAGE" \
+    -f "tree=$NEW_TREE_SHA" \
+    -f "parents[]=$CURRENT_COMMIT_SHA" \
+    -q ".sha")
+  
+  gh api repos/FortinetCloudCSE/$REPO_NAME/git/refs/heads/main \
+    --method PATCH \
+    -f sha="$NEW_COMMIT_SHA"
 fi

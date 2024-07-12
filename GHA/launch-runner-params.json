@@ -1,30 +1,30 @@
 [
         {
                 "ParameterKey": "VPCtoUse",
-		"ParameterValue": "vpc-ABCD1234"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "GHAToken",
-		"ParameterValue": "A4H44SAMPLETOKEN"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "KeyPair",
-		"ParameterValue": "my-key-pair"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "HashCheck",
-		"ParameterValue": "b0a090336f0d0a439dac7505475a1fb822f61bbb36420c7b3b3fe6b1bdc4dbaa"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "OrgName",
-		"ParameterValue": "my-org"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "RepoName",
-		"ParameterValue": "my-repo"
+		"ParameterValue": ""
 	},
 	{
 		"ParameterKey": "RunnerVersion",
-		"ParameterValue": "2.307.1"
+		"ParameterValue": ""
 	}
 ]
