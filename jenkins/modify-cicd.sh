@@ -3,7 +3,7 @@
 # Script for modifying existing GitHub repo configurations and/or creating a pipeline in Jenkins for an existing GitHub repo.
 #
 # Usage:
-# modify-cicd.sh [-j userid] [-c username -c username ... ] [-w] [-r] [-b] [-f template-config.xml] <name of repository>
+# modify-cicd.sh [-j userid] [-c username -c username ... ] [-w] [-r] [-b] [-a] [-f template-config.xml] <name of repository>
 #   -j Jenkins userid; if left out only GitHub operations will be performed
 #   -c usernames of collaborator to add to repo
 #   -w add a Jenkins webhook to the repo
@@ -11,9 +11,13 @@
 #   -u update README with GitHub pages URL
 #   -b add branch protections based on Jenkins pipeline execution status
 #   -f specify a Jenkins pipeline configuration xml
+#   -a Trigger Fortinet CloudCSE github action (rebuild with latest CentralRepo Container)
 
-while getopts 'j:c:rwbhu' opt; do
+while getopts 'j:c:rwbhua' opt; do
   case "${opt}" in
+    a)
+      TRIGGER_ACTION=1
+      ;;
     j)
       JENKINS_TASK=1
       JENKINS_USER_ID="$OPTARG"
@@ -40,6 +44,7 @@ while getopts 'j:c:rwbhu' opt; do
       ;;
     h)
       echo "Usage: modify-cicd.sh [-j userid] [-c username -c username ... ] [-w] [-r] [-b] [-f template-config.xml] <name of repository>"
+      echo "-a Trigger Fortinet CloudCSE github action (rebuild with latest CentralRepo Container)"
       echo "-j Jenkins userid; if left out only GitHub operations will be performed"
       echo "-c username of collaborator to add to repo"
       echo "-w add a Jenkins webhook to the repo"
@@ -63,6 +68,21 @@ REPO_NAME=$1
 # Check repo exists
 git ls-remote https://github.com/FortinetCloudCSE/$REPO_NAME > /dev/null
 [[ "$?" == "0" ]] && echo "Repo found..." || { "That repo doesn't exist, exiting..."; exit 1; }
+
+
+# Trigger Fortinet Cloud CSE GH Action
+if [[ "$TRIGGER_ACTION" == "1" ]]; then
+  #gh api "/repos/FortinetCloudCSE/$REPO_NAME/workflows/static.yml/dispatches" \
+  #   --input - <<< '{
+  #  "ref": "main",
+  #  }'
+  REPO="FortinetCloudCSE/$REPO_NAME"
+  REF="main"
+  gh workflow run static.yml --repo $REPO --ref $REF
+
+  [[ "$?" == "0" ]] || echo "Error Triggering GH Action..."
+fi
+
 
 # Add webhook if specified
 if [[ "$ADD_WEBHOOK" == "1" ]]; then
