@@ -66,6 +66,12 @@ Resources:
       AvailabilityZone: !Sub '${AWS::Region}a'
       ImageId: !Ref LatestAmiId
       IamInstanceProfile: !Ref SSMRoleProfile
+      BlockDeviceMappings:
+        - DeviceName: "/dev/xvda"
+          Ebs:
+            VolumeSize: 10
+            VolumeType: "gp3"
+            DeleteOnTermination: true
       SecurityGroupIds:
         - !Ref RunnerSG
       UserData:
