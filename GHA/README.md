@@ -39,6 +39,9 @@ export AWS_DEFAULT_REGION=us-east-1 && export AWS_PROFILE=user-admin
   * Note: You can also retrieve a token via the GitHub api if you have it installed:
     ```
     > gh auth login
+    > # First get the latest version of the Linux GHA runner
+    > gh api -H "Accept: application/vnd.github+json" /repos/actions/runner/releases/latest --jq '.tag_name'
+    > # Then retrieve an api token
     > gh api \
         --method POST \
         -H "Accept: application/vnd.github+json" \
