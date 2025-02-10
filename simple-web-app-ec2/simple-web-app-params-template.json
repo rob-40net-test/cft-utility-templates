@@ -1,0 +1,22 @@
+[
+        {
+                "ParameterKey": "InstanceType",
+		"ParameterValue": ""
+	},
+        {
+                "ParameterKey": "KeyPairName",
+		"ParameterValue": ""
+	},
+        {
+                "ParameterKey": "AppVPC",
+		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "FortiDASTUUID",
+		"ParameterValue": ""
+	},
+	{
+		"ParameterKey": "ElasticIPAlloc",
+		"ParameterValue": ""
+	}
+]
