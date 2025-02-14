@@ -34,18 +34,40 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          yum update -y
-          yum install -y httpd wget unzip
+          set -ex
+          dnf update -y
+          dnf install -y httpd wget unzip git php php-cli php-fpm php-mysqli php-gd php-xml php-json php-mbstring mariadb105-server
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
           unzip /tmp/awscliv2.zip
           ./aws/install
           TOKEN=$(curl -s -m 5 -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
           INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
           aws ec2 associate-address --allocation-id ${ElasticIPAlloc} --instance-id $INSTANCE_ID
-          systemctl start httpd
-          systemctl enable httpd
-          echo "<h1>Hello, AWS World!</h1>" > /var/www/html/index.html
-          install -m 777 /dev/null /var/www/html/${FortiDASTUUID}.html  # Create an empty file with the UUID for FortiDAST authorization
+          echo "alias ll='ls -la'" > /etc/profile.d/ssm-user-alias.sh
+          chmod +x /etc/profile.d/ssm-user-alias.sh
+          systemctl enable --now httpd
+          systemctl enable --now mariadb
+          systemctl enable --now php-fpm
+          mysql -u root <<EOF
+          DROP DATABASE IF EXISTS dvwa;
+          CREATE DATABASE dvwa;
+          DROP USER IF EXISTS 'dvwa'@'localhost';
+          CREATE USER 'dvwa'@'localhost' IDENTIFIED BY 'dvwapassword';
+          GRANT ALL PRIVILEGES ON dvwa.* TO 'dvwa'@'localhost' WITH GRANT OPTION;
+          FLUSH PRIVILEGES;
+          EOF
+          cd /var/www/html/
+          git clone https://github.com/digininja/DVWA.git dvwa
+          chown -R apache:apache /var/www/html
+          chmod -R 755 /var/www/html
+          cd dvwa/config
+          cp config.inc.php.dist config.inc.php
+          sed -i 's/p@ssw0rd/dvwapassword/' config.inc.php
+          sed -i "s/localhost/127.0.0.1/" config.inc.php   
+          install -m 644 /dev/null /var/www/html/${FortiDASTUUID}.html
+          systemctl restart httpd 
+
+
       Tags:
         - Key: Name
           Value: !Sub "Demo - ${AWS::StackName}"
