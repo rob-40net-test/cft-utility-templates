@@ -17,6 +17,8 @@ Parameters:
     Type: String
   RunnerVersion:
     Type: String
+  ElasticIPAlloc:
+    Type: String
 
 Resources:
   EC2RunnerAdminRole:
@@ -33,7 +35,8 @@ Resources:
             Action:
               - "sts:AssumeRole"
       ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
   SSMRoleProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -78,18 +81,21 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
           yum update -y && yum upgrade -y
-          yum install -y python3 python3-pip docker git jq yum-utils libicu
+          yum install -y python3 python3-pip docker git jq yum-utils libicu wget unzip
           yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
           systemctl enable amazon-ssm-agent
           systemctl start amazon-ssm-agent
           yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
           yum install -y terraform
           pip3 install cfn-lint
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip /tmp/awscliv2.zip
+          ./aws/install
+          TOKEN=$(curl -s -m 5 -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+          INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+          aws ec2 associate-address --allocation-id ${ElasticIPAlloc} --instance-id $INSTANCE_ID    
           systemctl start docker
           useradd -m -G docker runner-user
-          curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.28.5/2024-01-04/bin/linux/amd64/kubectl
-          chmod +x ./kubectl
-          mv kubectl /usr/bin/          
           curl -o /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz -L https://github.com/actions/runner/releases/download/v${RunnerVersion}/actions-runner-linux-x64-${RunnerVersion}.tar.gz
           echo "${HashCheck} /tmp/actions-runner-linux-x64-${RunnerVersion}.tar.gz" | sha256sum -c || echo "Hash check failed."
           mkdir -p /tmp/actions-runner

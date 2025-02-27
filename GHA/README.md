@@ -6,6 +6,8 @@ This CloudFormation Template can be used to quickly spin up a GitHub Actions Run
 
 - Pre-existing VPC.
 
+- Elastic IP unallocated.
+
 - GitHub repo already setup and ready to integrate with GitHub Actions.
 
 
@@ -80,6 +82,10 @@ export AWS_DEFAULT_REGION=us-east-1 && export AWS_PROFILE=user-admin
     {
          "ParameterKey": "RunnerVersion",
          "ParameterValue": "2.304.0"
+    },
+    {
+         "ParameterKey": "ElasticIPAlloc",
+         "ParameterValue": "eipalloc-abcde12345"
     }
 ]
 ```

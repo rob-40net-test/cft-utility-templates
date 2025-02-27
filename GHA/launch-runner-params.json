@@ -1,30 +1,34 @@
 [
         {
                 "ParameterKey": "VPCtoUse",
-		"ParameterValue": ""
+		"ParameterValue": "vpc-06cc8a38bba631898"
 	},
 	{
 		"ParameterKey": "GHAToken",
-		"ParameterValue": ""
+		"ParameterValue": "A4H44W44V6C6YOJVZ7RSMX3HYDB4U"
 	},
 	{
 		"ParameterKey": "KeyPair",
-		"ParameterValue": ""
+		"ParameterValue": "fgt-kp"
 	},
 	{
 		"ParameterKey": "HashCheck",
-		"ParameterValue": ""
+		"ParameterValue": "b13b784808359f31bc79b08a191f5f83757852957dd8fe3dbfcc38202ccf5768"
 	},
 	{
 		"ParameterKey": "OrgName",
-		"ParameterValue": ""
+		"ParameterValue": "robreris"
 	},
 	{
 		"ParameterKey": "RepoName",
-		"ParameterValue": ""
+		"ParameterValue": "terraform-fortios"
 	},
 	{
 		"ParameterKey": "RunnerVersion",
-		"ParameterValue": ""
-	}
+		"ParameterValue": "2.322.0"
+	},
+        {
+                "ParameterKey": "ElasticIPAlloc",
+                "ParameterValue": "eipalloc-04febb4954869ae30"
+        }
 ]

@@ -26,5 +26,9 @@
 	{
 		"ParameterKey": "RunnerVersion",
 		"ParameterValue": "2.307.1"
-	}
+	},
+        {
+                "ParameterKey": "ElasticIPAlloc",
+                "ParameterValue": "eipalloc-abcde12345"
+        }
 ]
